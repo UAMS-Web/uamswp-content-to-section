@@ -20,9 +20,14 @@ WYSIWYG HTML into a real block tree.
 
 ## Installing
 
-Drop the `uams-content-to-section` directory into `wp-content/plugins/` and
+Drop the `uamswp-content-to-section` directory into `wp-content/plugins/` and
 activate it. No build step, no Composer dependencies, no options to configure
 before first use.
+
+```bash
+cd wp-content/plugins
+git clone git@github.com:UAMS-Web/uamswp-content-to-section.git
+```
 
 It needs the UAMS 2020 theme (or wherever the two blocks are registered) and
 ACF Pro active to *render* the result, but it will parse and rewrite content
