@@ -2,6 +2,16 @@
  * Tools screen styles.
  */
 
+/*
+ * WordPress parks .row-actions off-screen until the row is hovered. This is a
+ * purpose-built tool screen rather than a general list table, so the post ID
+ * and the link to the page should just be readable -- including on touch.
+ */
+.uams-c2s-table .row-actions {
+	position: static;
+	color: #646970;
+}
+
 .uams-c2s-table td.uams-c2s-actions {
 	white-space: nowrap;
 }

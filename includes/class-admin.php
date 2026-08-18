@@ -299,11 +299,18 @@ class UAMS_C2S_Admin {
 				$post    = get_post( $id );
 				$summary = UAMS_C2S_Scanner::summarize( $post );
 				$backup  = metadata_exists( 'post', $id, UAMS_C2S_Converter::BACKUP_META );
+				$title   = get_the_title( $id );
+				$view    = $this->view_link( $id );
 				?>
 				<tr<?php echo $preview_id === (int) $id ? ' class="uams-c2s-current"' : ''; ?>>
 					<td>
-						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( get_the_title( $id ) ? get_the_title( $id ) : '(' . $id . ')' ); ?></a></strong>
-						<div class="row-actions"><span>#<?php echo absint( $id ); ?></span></div>
+						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ? $title : '(' . $id . ')' ); ?></a></strong>
+						<div class="row-actions">
+							<span>#<?php echo absint( $id ); ?></span>
+							<?php if ( $view ) : ?>
+								| <span><a href="<?php echo esc_url( $view['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $view['label'] ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'uams-c2s' ); ?></span></a></span>
+							<?php endif; ?>
+						</div>
 					</td>
 					<td><?php echo esc_html( (string) get_post_type( $id ) ); ?></td>
 					<td><?php echo esc_html( (string) get_post_status( $id ) ); ?></td>
@@ -327,6 +334,47 @@ class UAMS_C2S_Admin {
 			</tbody>
 		</table>
 		<?php
+	}
+
+	/**
+	 * Front-end link for a post, or null when it has no viewable URL.
+	 *
+	 * Published and private posts get their permalink; drafts, pending and
+	 * scheduled posts get a preview link, since their permalink is not live
+	 * yet. Labels say "on site" to keep them distinct from the Preview button,
+	 * which is a dry run of the conversion rather than a page view.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array{url:string,label:string}|null
+	 */
+	protected function view_link( $post_id ) {
+		$post = get_post( $post_id );
+
+		if ( ! $post ) {
+			return null;
+		}
+
+		$type = get_post_type_object( $post->post_type );
+
+		if ( ! $type || ! is_post_type_viewable( $type ) ) {
+			return null;
+		}
+
+		if ( in_array( $post->post_status, array( 'publish', 'private' ), true ) ) {
+			$url = get_permalink( $post );
+
+			return $url ? array(
+				'url'   => $url,
+				'label' => __( 'View on site', 'uams-c2s' ),
+			) : null;
+		}
+
+		$url = get_preview_post_link( $post );
+
+		return $url ? array(
+			'url'   => $url,
+			'label' => __( 'Preview on site', 'uams-c2s' ),
+		) : null;
 	}
 
 	/**
