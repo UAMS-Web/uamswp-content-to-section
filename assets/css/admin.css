@@ -1,0 +1,64 @@
+/**
+ * Tools screen styles.
+ */
+
+.uams-c2s-table td.uams-c2s-actions {
+	white-space: nowrap;
+}
+
+.uams-c2s-table td.uams-c2s-actions form {
+	display: inline-block;
+	margin: 0 0 0 4px;
+}
+
+.uams-c2s-table tr.uams-c2s-current > td {
+	box-shadow: inset 3px 0 0 #2271b1;
+}
+
+.uams-c2s-flag {
+	display: inline-block;
+	min-width: 1.6em;
+	padding: 0 .4em;
+	border-radius: 9px;
+	background: #f0b849;
+	color: #1d2327;
+	font-weight: 600;
+	text-align: center;
+}
+
+.uams-c2s-batch {
+	margin: 0 0 1em;
+}
+
+.uams-c2s-batch .description {
+	margin-left: .75em;
+}
+
+.uams-c2s-notices {
+	margin: 0 0 1em 1.5em;
+	list-style: disc;
+}
+
+.uams-c2s-diff {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1.5rem;
+}
+
+@media screen and (min-width: 1100px) {
+	.uams-c2s-diff {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.uams-c2s-diff h3 {
+	margin-top: 0;
+}
+
+.uams-c2s-diff textarea {
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre;
+	overflow-wrap: normal;
+	overflow-x: auto;
+}
