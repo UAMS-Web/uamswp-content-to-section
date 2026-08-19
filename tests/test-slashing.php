@@ -287,4 +287,64 @@ $result    = $converter->repair_post( 13 );
 
 uams_c2s_test_is( 'unforced repair of a clean-looking post declines', $result['reason'], 'clean' );
 
+/* -------------------------------------------------------------------------
+ * Verifying the restore against the backup
+ *
+ * A revision is only written when someone edits, so the newest one predating a
+ * conversion can be far older than the conversion. The backup was copied from
+ * post_content at the moment of conversion, so it settles whether the revision
+ * really is what got converted.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- restore verification\n";
+
+// v1.0.0: backup stored a slash level down, revision intact. Still a match.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 20, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 200, 'post_type' => 'revision', 'post_parent' => 20, 'post_content' => $source, 'post_date_gmt' => '2025-08-27 19:31:56' ) );
+add_post_meta( 20, UAMS_C2S_Converter::BACKUP_META, $source ); // Unslashed, as 1.0.0 did.
+update_post_meta( 20, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-18 21:51:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 20 );
+
+uams_c2s_test_is( 'year-old revision still verifies against a 1.0.0 backup', $plan['verified'], 'exact' );
+
+// The post changed after its last revision but before the conversion.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 21, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 210, 'post_type' => 'revision', 'post_parent' => 21, 'post_content' => $source, 'post_date_gmt' => '2025-08-27 19:31:56' ) );
+add_post_meta( 21, UAMS_C2S_Converter::BACKUP_META, $source . '<!-- wp:paragraph --><p>Added without a revision.</p><!-- /wp:paragraph -->' );
+update_post_meta( 21, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-18 21:51:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 21 );
+
+uams_c2s_test_is( 'a stale revision is caught as a mismatch', $plan['verified'], 'mismatch' );
+uams_c2s_test_is( 'a mismatch still names its candidate', $plan['label'], 'revision #210 (2025-08-27 19:31:56 GMT)' );
+
+// No backup left to check against.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 22, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 220, 'post_type' => 'revision', 'post_parent' => 22, 'post_content' => $source, 'post_date_gmt' => '2025-08-27 19:31:56' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 22 );
+
+uams_c2s_test_is( 'no backup: verification is unknown, not a match', $plan['verified'], 'unknown' );
+
+// A clean v1.0.1 post is not in the repair queue at all, so repair_plan()
+// returns before verifying anything. The restore path still verifies, which is
+// what a plain revert goes through.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 23, 'post_content' => $converted ) );
+uams_c2s_test_post( array( 'ID' => 230, 'post_type' => 'revision', 'post_parent' => 23, 'post_content' => $source, 'post_date_gmt' => '2026-08-19 10:00:00' ) );
+add_post_meta( 23, UAMS_C2S_Converter::BACKUP_META, wp_slash( $source ) );
+update_post_meta( 23, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-19 11:00:00 +0000' ), 'version' => '1.0.1', 'source_revision' => 230 ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+
+uams_c2s_test_is( 'clean v1.0.1 post is not queued for repair', $converter->repair_plan( 23 )['verified'], '' );
+uams_c2s_test_is( 'v1.0.1 backup verifies its revision too', $converter->source( 23 )['verified'], 'exact' );
+
 uams_c2s_test_done();

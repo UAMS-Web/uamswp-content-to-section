@@ -449,6 +449,7 @@ class UAMS_C2S_Converter {
 			'at_risk'   => false,
 			'source'    => '',
 			'label'     => '',
+			'verified'  => '',
 			'error'     => '',
 			'sample'    => '',
 			'converted' => array(),
@@ -481,8 +482,9 @@ class UAMS_C2S_Converter {
 			return $plan;
 		}
 
-		$plan['source'] = $source['source'];
-		$plan['label']  = $source['label'];
+		$plan['source']   = $source['source'];
+		$plan['label']    = $source['label'];
+		$plan['verified'] = $source['verified'];
 
 		return $plan;
 	}
@@ -600,9 +602,10 @@ class UAMS_C2S_Converter {
 
 		if ( $revision ) {
 			return array(
-				'content' => $revision->post_content,
-				'source'  => 'revision',
-				'label'   => sprintf(
+				'content'  => $revision->post_content,
+				'source'   => 'revision',
+				'verified' => $this->matches_backup( $post->ID, $revision->post_content ),
+				'label'    => sprintf(
 					/* translators: 1: revision ID, 2: revision date. */
 					__( 'revision #%1$d (%2$s GMT)', 'uams-c2s' ),
 					$revision->ID,
@@ -631,10 +634,42 @@ class UAMS_C2S_Converter {
 		}
 
 		return array(
-			'content' => (string) $backup,
-			'source'  => 'backup',
-			'label'   => __( 'stored backup', 'uams-c2s' ),
+			'content'  => (string) $backup,
+			'source'   => 'backup',
+			'verified' => 'exact',
+			'label'    => __( 'stored backup', 'uams-c2s' ),
 		);
+	}
+
+	/**
+	 * Does a candidate restore match what was actually converted?
+	 *
+	 * A revision is only written when someone edits a post, so the newest one
+	 * predating a conversion can be much older than the conversion itself. That
+	 * is usually fine -- nothing changed in between -- but not always: anything
+	 * that rewrites post_content without creating a revision would leave the
+	 * revision stale, and restoring it would quietly throw away the difference.
+	 *
+	 * The backup meta settles it, because it was copied from post_content at the
+	 * moment of conversion. 1.0.1 stored it intact; 1.0.0 stored it a slash
+	 * level down, so either form counts as a match.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $content Candidate content.
+	 * @return string 'exact', 'mismatch', or 'unknown' when there is no backup.
+	 */
+	protected function matches_backup( $post_id, $content ) {
+		if ( ! metadata_exists( 'post', $post_id, self::BACKUP_META ) ) {
+			return 'unknown';
+		}
+
+		$backup = (string) get_post_meta( $post_id, self::BACKUP_META, true );
+
+		if ( (string) $content === $backup || wp_unslash( (string) $content ) === $backup ) {
+			return 'exact';
+		}
+
+		return 'mismatch';
 	}
 
 	/**
