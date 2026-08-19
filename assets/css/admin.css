@@ -93,3 +93,13 @@
 	font-weight: 600;
 	text-align: right;
 }
+
+.uams-c2s-verified::before {
+	content: "✓ ";
+	font-weight: 700;
+	color: #007017;
+}
+
+.uams-c2s-unverified {
+	font-style: italic;
+}

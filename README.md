@@ -179,11 +179,32 @@ version** — provenance is the stronger witness. For the same reason the backup
 meta is refused on provenance alone when an affected version wrote it, rather
 than waiting for it to look wrong.
 
+### The restore is verified, not assumed
+
+A revision is only written when someone edits a post, so the newest one
+predating a conversion is often much older than the conversion — a page last
+touched in 2025 and converted in 2026 restores from a 2025 revision. That is
+normally right, because nothing changed in between. It is wrong if something
+rewrote `post_content` without creating a revision, and restoring a stale
+revision would quietly discard the difference.
+
+The backup meta settles it: it was copied from `post_content` at the moment of
+conversion, so comparing it to the candidate revision proves whether that
+revision is what actually got converted. 1.0.1 stored the backup intact, 1.0.0
+stored it a slash level down, and either form counts as a match. Each row reports
+the verdict:
+
+- **matches the pre-conversion backup** — proven; repair freely.
+- **does not match** — the revision is not what was converted. **Batch repair
+  skips these**; compare the two by hand before using the per-post button.
+- **no backup survives to check it against** — the revision is the only source.
+
 Tools → Content → Section grows a **Needs re-converting** table listing every
-affected post, with a per-post **Repair** button, the revision each one would
-come from, and whether the damage is visible or inferred from the record. Posts
-with no surviving clean revision are listed with the reason and no button; those
-need a database backup. The same thing from the shell:
+affected post, with a per-post **Repair** button, a **Repair all** batch, the
+revision each one would come from and whether it verifies, and whether the
+damage is visible or inferred from the record. Posts with no surviving clean
+revision are listed with the reason and no button; those need a database backup.
+The same thing from the shell:
 
 ```bash
 wp uams-c2s repair --all --dry-run   # what is damaged, and where it restores from

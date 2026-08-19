@@ -47,6 +47,7 @@ class UAMS_C2S_Admin {
 		add_action( 'admin_post_uams_c2s_convert', array( $this, 'handle_convert' ) );
 		add_action( 'admin_post_uams_c2s_revert', array( $this, 'handle_revert' ) );
 		add_action( 'admin_post_uams_c2s_repair', array( $this, 'handle_repair' ) );
+		add_action( 'admin_post_uams_c2s_repair_batch', array( $this, 'handle_repair_batch' ) );
 		add_action( 'admin_post_uams_c2s_batch', array( $this, 'handle_batch' ) );
 	}
 
@@ -130,6 +131,7 @@ class UAMS_C2S_Admin {
 			<?php $this->render_notice( $notice ); ?>
 			<?php $this->render_environment_warnings(); ?>
 			<?php $this->render_status(); ?>
+			<?php $this->render_damaged( $options ); ?>
 
 			<p class="description">
 				<?php
@@ -214,7 +216,6 @@ class UAMS_C2S_Admin {
 
 			<?php $this->render_table( $page_ids, $preview_id ); ?>
 			<?php $this->render_pagination( $paged, $pages ); ?>
-			<?php $this->render_damaged( $options ); ?>
 			<?php $this->render_preview( $preview_id, $options ); ?>
 		</div>
 		<?php
@@ -229,16 +230,7 @@ class UAMS_C2S_Admin {
 	 * @param array<string,mixed> $options Conversion options.
 	 */
 	protected function render_damaged( array $options ) {
-		// Visible damage and recorded provenance are different populations, and
-		// neither contains the other: a v1.0.0 conversion can look clean, and
-		// damage can arrive from something that is not this plugin at all.
-		$ids = array_values(
-			array_unique(
-				array_merge( UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk() )
-			)
-		);
-
-		sort( $ids );
+		$ids = $this->repair_queue();
 
 		if ( ! $ids ) {
 			return;
@@ -295,6 +287,36 @@ class UAMS_C2S_Admin {
 				?>
 			</p>
 		</div>
+
+		<?php
+		$repairable = 0;
+
+		foreach ( $plans as $plan ) {
+			if ( ! $plan['error'] ) {
+				++$repairable;
+			}
+		}
+		?>
+
+		<?php if ( $repairable > 1 ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="uams-c2s-batch">
+				<input type="hidden" name="action" value="uams_c2s_repair_batch" />
+				<?php wp_nonce_field( 'uams_c2s_repair_batch' ); ?>
+				<?php
+				submit_button(
+					sprintf(
+						/* translators: %d: number of posts. */
+						__( 'Repair all %d posts', 'uams-c2s' ),
+						$repairable
+					),
+					'primary',
+					'submit',
+					false
+				);
+				?>
+				<span class="description"><?php esc_html_e( 'Runs in batches of 10. Each post is restored from its pre-conversion revision, then converted again.', 'uams-c2s' ); ?></span>
+			</form>
+		<?php endif; ?>
 
 		<table class="widefat striped uams-c2s-table">
 			<thead>
@@ -355,6 +377,15 @@ class UAMS_C2S_Admin {
 							<span class="uams-c2s-flag"><?php echo esc_html( $plan['error'] ); ?></span>
 						<?php else : ?>
 							<?php echo esc_html( $plan['label'] ); ?>
+							<div class="row-actions">
+								<?php if ( 'exact' === $plan['verified'] ) : ?>
+									<span class="uams-c2s-verified"><?php esc_html_e( 'matches the pre-conversion backup', 'uams-c2s' ); ?></span>
+								<?php elseif ( 'mismatch' === $plan['verified'] ) : ?>
+									<span class="uams-c2s-flag"><?php esc_html_e( 'does not match the pre-conversion backup — this revision is not what was converted, so repairing would discard the difference. Compare them before acting.', 'uams-c2s' ); ?></span>
+								<?php else : ?>
+									<span class="uams-c2s-unverified"><?php esc_html_e( 'no backup survives to check it against', 'uams-c2s' ); ?></span>
+								<?php endif; ?>
+							</div>
 						<?php endif; ?>
 					</td>
 					<td class="uams-c2s-actions">
@@ -507,6 +538,8 @@ class UAMS_C2S_Admin {
 			'reverted'   => array( 'success', __( 'Post restored to its pre-conversion content.', 'uams-c2s' ) ),
 			'repaired'   => array( 'success', __( 'Post restored from its pre-conversion revision and converted again.', 'uams-c2s' ) ),
 			'norepair'   => array( 'info', __( 'That post is not damaged; nothing to repair.', 'uams-c2s' ) ),
+
+			'repair_batch_done' => array( 'success', __( 'Re-conversion finished. Anything still listed below could not be repaired automatically — check the reason given.', 'uams-c2s' ) ),
 			'saved'      => array( 'success', __( 'Options saved.', 'uams-c2s' ) ),
 			'batch_done' => array( 'success', __( 'Batch conversion finished.', 'uams-c2s' ) ),
 			'error'      => array( 'error', __( 'The conversion failed. Check the error log.', 'uams-c2s' ) ),
@@ -832,6 +865,77 @@ class UAMS_C2S_Admin {
 	}
 
 	/**
+	 * Repair a batch of posts, then chain to the next batch.
+	 */
+	public function handle_repair_batch() {
+		$this->authorize( 'uams_c2s_repair_batch' );
+
+		$converter = new UAMS_C2S_Converter( $this->options() );
+
+		// Posts leave the queue as they are repaired, so always take the head of
+		// the list; failures are parked to avoid an endless loop.
+		$skipped = get_transient( 'uams_c2s_repair_skipped' );
+		$skipped = is_array( $skipped ) ? $skipped : array();
+
+		foreach ( array_slice( $this->repair_queue( $skipped ), 0, self::BATCH_SIZE ) as $id ) {
+			if ( ! current_user_can( 'edit_post', $id ) ) {
+				$skipped[] = $id;
+				continue;
+			}
+
+			// A restore that does not match the backup is not the content that
+			// was converted. Leave those for a human to look at rather than
+			// rolling them back in bulk.
+			if ( 'mismatch' === $converter->repair_plan( $id )['verified'] ) {
+				$skipped[] = $id;
+				continue;
+			}
+
+			$result = $converter->repair_post( $id, true );
+
+			if ( is_wp_error( $result ) || empty( $result['repaired'] ) ) {
+				$skipped[] = $id;
+			}
+		}
+
+		$remaining = $this->repair_queue( $skipped );
+
+		if ( $remaining ) {
+			set_transient( 'uams_c2s_repair_skipped', array_values( array_unique( $skipped ) ), HOUR_IN_SECONDS );
+			$this->render_batch_progress(
+				count( $remaining ),
+				'uams_c2s_repair_batch',
+				__( 'Repairing…', 'uams-c2s' ),
+				/* translators: %d: number of posts left. */
+				_n( '%d post left to repair…', '%d posts left to repair…', count( $remaining ), 'uams-c2s' )
+			);
+		}
+
+		delete_transient( 'uams_c2s_repair_skipped' );
+		$this->redirect( 'repair_batch_done' );
+	}
+
+	/**
+	 * Posts needing a re-conversion: visibly damaged, or converted by an
+	 * affected version.
+	 *
+	 * Neither population contains the other. Damage can arrive from something
+	 * that is not this plugin, and a conversion an affected version wrote can
+	 * leave no signature the content scanner could recognise.
+	 *
+	 * @param int[] $skipped Post IDs to leave out.
+	 * @return int[]
+	 */
+	protected function repair_queue( array $skipped = array() ) {
+		$ids = array_merge( UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk() );
+		$ids = array_diff( array_unique( $ids ), array_map( 'absint', $skipped ) );
+
+		sort( $ids );
+
+		return array_values( $ids );
+	}
+
+	/**
 	 * Convert a batch of posts, then chain to the next batch.
 	 */
 	public function handle_batch() {
@@ -879,32 +983,32 @@ class UAMS_C2S_Admin {
 	/**
 	 * Self-submitting interstitial that runs the next batch.
 	 *
-	 * @param int $remaining Posts still to process.
+	 * @param int    $remaining Posts still to process.
+	 * @param string $action    admin-post action to chain to.
+	 * @param string $title     Page title.
+	 * @param string $progress  Already-pluralised sprintf pattern taking the count.
 	 */
-	protected function render_batch_progress( $remaining ) {
-		$url = admin_url( 'admin-post.php' );
+	protected function render_batch_progress( $remaining, $action = 'uams_c2s_batch', $title = '', $progress = '' ) {
+		$url      = admin_url( 'admin-post.php' );
+		$title    = $title ? $title : __( 'Converting…', 'uams-c2s' );
+		$progress = $progress
+			? $progress
+			/* translators: %d: number of posts left. */
+			: _n( '%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s' );
 
 		nocache_headers();
 
 		echo '<!doctype html><html><head><meta charset="utf-8">';
-		echo '<title>' . esc_html__( 'Converting…', 'uams-c2s' ) . '</title>';
+		echo '<title>' . esc_html( $title ) . '</title>';
 		echo '</head><body style="font:14px -apple-system,system-ui,sans-serif;padding:3rem;text-align:center">';
 
-		printf(
-			'<p>%s</p>',
-			esc_html(
-				sprintf(
-					/* translators: %d: number of posts left. */
-					_n( '%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s' ),
-					$remaining
-				)
-			)
-		);
+		printf( '<p>%s</p>', esc_html( sprintf( $progress, $remaining ) ) );
 
 		printf(
-			'<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="uams_c2s_batch" />%2$s<button type="submit">%3$s</button></form>',
+			'<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="%2$s" />%3$s<button type="submit">%4$s</button></form>',
 			esc_url( $url ),
-			wp_nonce_field( 'uams_c2s_batch', '_wpnonce', true, false ),
+			esc_attr( $action ),
+			wp_nonce_field( $action, '_wpnonce', true, false ),
 			esc_html__( 'Continue', 'uams-c2s' )
 		);
 
