@@ -266,6 +266,7 @@ the converter, including the fact that both `wp_update_post()` and
 | `uams_c2s_wysiwyg_field` | Point at a different body field. |
 | `uams_c2s_statuses` | Change which post statuses are scanned. |
 
-Field *keys* are read from the live ACF field groups (`group_uams_content`,
-`group_uams_section`) at runtime, so changing the theme's `$suffix` does not
-break the mapping; the `_b` keys are only a fallback.
+Field *keys* are a write-side concern only. The Content block is read by field
+*name*; only the Section block being written needs keys, and those are read from
+the live `group_uams_section` field group at runtime, so changing the theme's
+`$suffix` does not break the mapping. The `_b` keys are only a fallback.

@@ -1,12 +1,14 @@
 <?php
 /**
- * Resolves ACF field names to field keys for the two blocks.
+ * Resolves ACF field names to field keys for the Section block.
  *
  * ACF blocks store their values in the block's `data` attribute as
- * `name => value` pairs, each shadowed by `_name => field_key`. The keys are
- * read from the live field groups when ACF is available, so a theme that
- * changes its `$suffix` keeps working; the hard-coded fallbacks match the
- * uams-2020 theme (`$suffix = '_b'`).
+ * `name => value` pairs, each shadowed by `_name => field_key`. Field keys are
+ * a write-side concern only: the Content block is read by field *name*, and
+ * only the Section block being written needs keys. The keys are read from the
+ * live field group when ACF is available, so a theme that changes its `$suffix`
+ * keeps working; the hard-coded fallbacks match the uams-2020 theme
+ * (`$suffix = '_b'`).
  *
  * @package UAMS_Content_To_Section
  */
@@ -18,26 +20,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class UAMS_C2S_Field_Map {
 
-	const SOURCE_GROUP = 'group_uams_content';
 	const TARGET_GROUP = 'group_uams_section';
-
-	/**
-	 * Fallback keys for the Content block.
-	 *
-	 * Note `content_content` is keyed `field_content_description_b` -- the name
-	 * and key deliberately disagree in the theme.
-	 *
-	 * @var array<string,string>
-	 */
-	protected static $fallback_source = array(
-		'content_heading'          => 'field_content_heading_b',
-		'content_hide_heading'     => 'field_content_hide_heading_b',
-		'content_content'          => 'field_content_description_b',
-		'content_background_color' => 'field_content_background_color_b',
-		'content_geo'              => 'field_content_geo_b',
-		'content_geo_region'       => 'field_content_geo_region_b',
-		'geo_valid'                => 'field_content_geo_valid_b',
-	);
 
 	/**
 	 * Fallback keys for the Section block.
@@ -76,15 +59,6 @@ class UAMS_C2S_Field_Map {
 				'content_background_color' => 'section_background_color',
 			)
 		);
-	}
-
-	/**
-	 * Field name => field key for the Content block.
-	 *
-	 * @return array<string,string>
-	 */
-	public static function source_keys() {
-		return self::keys( self::SOURCE_GROUP, self::$fallback_source );
 	}
 
 	/**

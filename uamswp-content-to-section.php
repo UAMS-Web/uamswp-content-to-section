@@ -88,15 +88,14 @@ function uams_c2s_enqueue_editor_assets() {
 	wp_localize_script(
 		'uams-c2s-editor-transform',
 		'uamsC2S',
+		// Every key here must have a reader in editor-transform.js. `sourceKeys`
+		// and `i18n` did not, and shipped an acf_get_fields() call plus their
+		// payload on every block-editor page load to be ignored.
 		array(
 			'sourceBlock' => UAMS_C2S_Converter::SOURCE_BLOCK,
 			'targetBlock' => UAMS_C2S_Converter::TARGET_BLOCK,
-			'sourceKeys'  => UAMS_C2S_Field_Map::source_keys(),
 			'targetKeys'  => UAMS_C2S_Field_Map::target_keys(),
 			'pairs'       => UAMS_C2S_Field_Map::pairs(),
-			'i18n'        => array(
-				'transformLabel' => __( 'UAMS Section', 'uams-c2s' ),
-			),
 		)
 	);
 }
