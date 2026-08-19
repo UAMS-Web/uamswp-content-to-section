@@ -355,7 +355,13 @@ class UAMS_C2S_CLI {
 				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
 			}
 
-			$ids = UAMS_C2S_Scanner::find_damaged();
+			$ids = array_values(
+				array_unique(
+					array_merge( UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk() )
+				)
+			);
+
+			sort( $ids );
 		}
 
 		if ( ! $ids ) {
@@ -375,7 +381,7 @@ class UAMS_C2S_CLI {
 				$rows[] = array(
 					'ID'        => $id,
 					'title'     => get_the_title( $id ),
-					'damaged'   => $plan['damaged'] ? 'yes' : 'no',
+					'damaged'   => $plan['damaged'] ? 'yes' : 'not visible',
 					'converted' => empty( $plan['converted'] )
 						? 'no record'
 						: sprintf( 'v%s', isset( $plan['converted']['version'] ) ? $plan['converted']['version'] : '?' ),
@@ -408,7 +414,7 @@ class UAMS_C2S_CLI {
 		$failed   = 0;
 
 		foreach ( $ids as $id ) {
-			$result = $converter->repair_post( $id );
+			$result = $converter->repair_post( $id, true );
 
 			if ( is_wp_error( $result ) ) {
 				++$failed;

@@ -29,6 +29,20 @@ class UAMS_C2S_Converter {
 	const DAMAGE_PATTERN = '/(?<!\\\\)u00(?:22|26|2d|3c|3e)/i';
 
 	/**
+	 * Plugin versions that saved post content without slashing it.
+	 *
+	 * Anything these wrote went through wp_unslash(), whether or not
+	 * DAMAGE_PATTERN can see it afterwards. The pattern only catches escapes
+	 * whose stripped form is unambiguous; a lost backslash-n or backslash-t
+	 * inside an attribute value leaves a bare "n" or "t" that is
+	 * indistinguishable from ordinary text. A conversion record naming one of
+	 * these versions is therefore stronger evidence than the content is.
+	 *
+	 * @var string[]
+	 */
+	const UNSLASHED_VERSIONS = array( '1.0.0' );
+
+	/**
 	 * Conversion arguments.
 	 *
 	 * @var array<string,mixed>
@@ -363,17 +377,19 @@ class UAMS_C2S_Converter {
 	 * converts again with the current code. The conversion options come from
 	 * this instance, so pass the same ones the original run used.
 	 *
-	 * @param int|WP_Post $post Post.
+	 * @param int|WP_Post $post  Post.
+	 * @param bool        $force Repair even when no damage is visible, for posts
+	 *                           an affected version converted.
 	 * @return array|WP_Error
 	 */
-	public function repair_post( $post ) {
+	public function repair_post( $post, $force = false ) {
 		$post = get_post( $post );
 
 		if ( ! $post ) {
 			return new WP_Error( 'uams_c2s_no_post', __( 'Post not found.', 'uams-c2s' ) );
 		}
 
-		if ( ! self::looks_damaged( $post->post_content ) ) {
+		if ( ! $force && ! self::looks_damaged( $post->post_content ) ) {
 			return array(
 				'post_id'  => (int) $post->ID,
 				'repaired' => false,
@@ -430,6 +446,7 @@ class UAMS_C2S_Converter {
 		$plan = array(
 			'post_id'   => $post ? (int) $post->ID : 0,
 			'damaged'   => false,
+			'at_risk'   => false,
 			'source'    => '',
 			'label'     => '',
 			'error'     => '',
@@ -443,15 +460,18 @@ class UAMS_C2S_Converter {
 			return $plan;
 		}
 
-		if ( ! self::looks_damaged( $post->post_content ) ) {
+		$record = get_post_meta( $post->ID, self::CONVERTED_META, true );
+		$record = is_array( $record ) ? $record : array();
+
+		$plan['converted'] = $record;
+		$plan['damaged']   = self::looks_damaged( $post->post_content );
+		$plan['at_risk']   = self::wrote_unslashed( isset( $record['version'] ) ? $record['version'] : '' );
+
+		if ( ! $plan['damaged'] && ! $plan['at_risk'] ) {
 			return $plan;
 		}
 
-		$record = get_post_meta( $post->ID, self::CONVERTED_META, true );
-
-		$plan['damaged']   = true;
-		$plan['sample']    = self::damage_sample( $post->post_content );
-		$plan['converted'] = is_array( $record ) ? $record : array();
+		$plan['sample'] = self::damage_sample( $post->post_content );
 
 		$source = $this->restore_source( $post );
 
@@ -479,6 +499,28 @@ class UAMS_C2S_Converter {
 	 */
 	public static function looks_damaged( $content ) {
 		return (bool) preg_match( self::DAMAGE_PATTERN, (string) $content );
+	}
+
+	/**
+	 * Did this plugin version write post content without slashing it?
+	 *
+	 * @param string $version Version from a conversion record.
+	 * @return bool
+	 */
+	public static function wrote_unslashed( $version ) {
+		return in_array( (string) $version, self::UNSLASHED_VERSIONS, true );
+	}
+
+	/**
+	 * The plugin version recorded against a post's conversion, if any.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Empty when this plugin has no record of converting it.
+	 */
+	public function converted_by( $post_id ) {
+		$record = get_post_meta( $post_id, self::CONVERTED_META, true );
+
+		return ( is_array( $record ) && ! empty( $record['version'] ) ) ? (string) $record['version'] : '';
 	}
 
 	/**
@@ -578,10 +620,13 @@ class UAMS_C2S_Converter {
 
 		$backup = get_post_meta( $post->ID, self::BACKUP_META, true );
 
-		if ( self::looks_damaged( $backup ) ) {
+		// Distrust the backup on its provenance, not on how it looks. An
+		// affected version stored it through add_post_meta()'s unslash, so it
+		// lost a backslash level even where nothing visible survives to prove it.
+		if ( self::wrote_unslashed( $this->converted_by( $post->ID ) ) || self::looks_damaged( $backup ) ) {
 			return new WP_Error(
 				'uams_c2s_damaged_backup',
-				__( 'The stored backup was written by plugin 1.0.0 and lost a level of backslashes, and no clean pre-conversion revision survives. Restore this post from a database backup instead.', 'uams-c2s' )
+				__( 'The stored backup was written by a plugin version that unslashed it, and no clean pre-conversion revision survives. Restore this post from a database backup instead.', 'uams-c2s' )
 			);
 		}
 

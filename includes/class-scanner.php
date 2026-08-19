@@ -162,12 +162,14 @@ class UAMS_C2S_Scanner {
 				$last = max( $last, (int) $record['time'] );
 			}
 
-			if ( ! empty( $record['version'] ) ) {
-				$versions[ (string) $record['version'] ] = true;
-			}
+			$version = ! empty( $record['version'] ) ? (string) $record['version'] : '?';
+
+			$versions[ $version ] = isset( $versions[ $version ] ) ? $versions[ $version ] + 1 : 1;
 
 			$blocks += isset( $record['converted'] ) ? (int) $record['converted'] : 0;
 		}
+
+		ksort( $versions );
 
 		return array(
 			'content'     => self::count_containing( '<!-- wp:' . UAMS_C2S_Converter::SOURCE_BLOCK ),
@@ -176,9 +178,47 @@ class UAMS_C2S_Scanner {
 			'blocks'      => $blocks,
 			'backups'     => $backups,
 			'damaged'     => count( self::find_damaged() ),
+			'at_risk'     => count( self::find_at_risk() ),
 			'last'        => $last,
-			'versions'    => array_keys( $versions ),
+			'versions'    => $versions,
 		);
+	}
+
+	/**
+	 * IDs of posts converted by a plugin version that did not slash its writes.
+	 *
+	 * Membership is decided by the conversion record, not by the content: a
+	 * lost backslash-n leaves no signature the content scanner can recognise,
+	 * so a post can be damaged and still look clean. The record is the only
+	 * reliable witness.
+	 *
+	 * @return int[]
+	 */
+	public static function find_at_risk() {
+		global $wpdb;
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY post_id ASC",
+				UAMS_C2S_Converter::CONVERTED_META
+			)
+		);
+
+		$ids = array();
+
+		foreach ( (array) $rows as $row ) {
+			$record = maybe_unserialize( $row->meta_value );
+
+			if ( ! is_array( $record ) || empty( $record['version'] ) ) {
+				continue;
+			}
+
+			if ( UAMS_C2S_Converter::wrote_unslashed( $record['version'] ) ) {
+				$ids[] = (int) $row->post_id;
+			}
+		}
+
+		return $ids;
 	}
 
 	/**
