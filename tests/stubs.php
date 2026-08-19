@@ -129,6 +129,13 @@ function metadata_exists( $type, $id, $key ) {
 }
 
 function add_post_meta( $id, $key, $value, $unique = false ) {
+	// Real WP writes nothing and returns false when $unique is set and a row
+	// already exists. convert_post() depends on that to avoid replacing a good
+	// backup with a damaged one, so the stub has to refuse too.
+	if ( $unique && metadata_exists( 'post', $id, $key ) ) {
+		return false;
+	}
+
 	// Core unslashes meta values on the way in.
 	$GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] = is_string( $value ) ? wp_unslash( $value ) : $value;
 
@@ -253,6 +260,41 @@ class UAMS_C2S_Test_Converter extends UAMS_C2S_Converter {
 	 */
 	public function write( $post_id, $content ) {
 		return $this->write_content( $post_id, $content );
+	}
+
+	/**
+	 * Canned convert_content() result, or null to fail loudly if reached.
+	 *
+	 * @var array|null
+	 */
+	public $canned = null;
+
+	/**
+	 * Stand in for the block parser so the post-level lifecycle can be driven.
+	 *
+	 * stubs.php defines no parse_blocks()/serialize_blocks(), so the real
+	 * convert_content() cannot run here. Overriding it at this seam lets
+	 * convert_post(), revert_post() and repair_post() execute for real -- which
+	 * is what actually exercises the backup write and the conversion record.
+	 * This deliberately does NOT test the block parser.
+	 *
+	 * @param string $content Post content.
+	 * @return array
+	 */
+	public function convert_content( $content ) {
+		if ( null === $this->canned ) {
+			throw new RuntimeException( 'convert_content() reached with no canned result set.' );
+		}
+
+		return array_merge(
+			array(
+				'content'   => $content,
+				'converted' => 1,
+				'skipped'   => 0,
+				'notices'   => array(),
+			),
+			$this->canned
+		);
 	}
 }
 

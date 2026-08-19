@@ -369,4 +369,147 @@ uams_c2s_test_is( 'auto-draft cannot be smuggled in', UAMS_C2S_Scanner::narrow_s
 uams_c2s_test_is( 'a bogus status cannot widen the run', UAMS_C2S_Scanner::narrow_statuses( 'any' ), array() );
 uams_c2s_test_is( 'a mixed request keeps only the valid part', UAMS_C2S_Scanner::narrow_statuses( array( 'draft', 'trash' ) ), array( 'draft' ) );
 
+/* -------------------------------------------------------------------------
+ * F6 — a recorded source_revision is an address, not a warrant
+ *
+ * The recorded-id branch used to return whatever the id pointed at after
+ * checking only post type and parent, while the search branch rejected damaged
+ * and already-converted revisions. That gap was the one way mangled content
+ * could be written back over a post while repair reported success.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- recorded revision validity\n";
+
+// Recorded id points at damaged markup.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 40, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 400, 'post_type' => 'revision', 'post_parent' => 40, 'post_content' => $mangled, 'post_date_gmt' => '2026-08-18 20:00:00' ) );
+update_post_meta( 40, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.0', 'source_revision' => 400 ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+
+uams_c2s_test_is( 'recorded id pointing at damaged markup is refused', $converter->pre_conversion_revision( 40 ), null );
+
+// Recorded id points at content with no Content block left to convert.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 41, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 410, 'post_type' => 'revision', 'post_parent' => 41, 'post_content' => $converted, 'post_date_gmt' => '2026-08-18 20:00:00' ) );
+update_post_meta( 41, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.0', 'source_revision' => 410 ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+
+uams_c2s_test_is( 'recorded id with no Content block is refused', $converter->pre_conversion_revision( 41 ), null );
+
+// A recorded id pointing at good content is still honoured.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 42, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 420, 'post_type' => 'revision', 'post_parent' => 42, 'post_content' => $source, 'post_date_gmt' => '2026-08-18 20:00:00' ) );
+update_post_meta( 42, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.0', 'source_revision' => 420 ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$chosen    = $converter->pre_conversion_revision( 42 );
+
+uams_c2s_test_is( 'a sound recorded id is still honoured', $chosen ? (int) $chosen->ID : 0, 420 );
+
+/* -------------------------------------------------------------------------
+ * F6/F12 — repair_post() refuses instead of reporting success
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- repair refusals\n";
+
+// Mismatch: the restore is not what was converted. Must refuse, and must not
+// touch post_content -- previously only the batch loop declined, while the
+// single-post button and the CLI went ahead.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 50, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 500, 'post_type' => 'revision', 'post_parent' => 50, 'post_content' => $source, 'post_date_gmt' => '2025-08-27 19:31:56' ) );
+add_post_meta( 50, UAMS_C2S_Converter::BACKUP_META, $source . '<!-- wp:paragraph --><p>Edited without a revision.</p><!-- /wp:paragraph -->' );
+update_post_meta( 50, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-18 21:51:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter         = new UAMS_C2S_Test_Converter();
+$converter->canned = array( 'converted' => 1 );
+$result            = $converter->repair_post( 50, true );
+
+uams_c2s_test_is( 'mismatch: refuses even when forced', empty( $result['repaired'] ), true );
+uams_c2s_test_is( 'mismatch: says why', $result['reason'], 'mismatch' );
+uams_c2s_test_is( 'mismatch: post_content untouched', get_post( 50 )->post_content, $mangled );
+uams_c2s_test_is( 'mismatch: backup still present', metadata_exists( 'post', 50, UAMS_C2S_Converter::BACKUP_META ), true );
+
+// Restore succeeds but yields nothing to convert. The post is legitimately back
+// to pre-conversion content, but claiming "repaired" hid that both metas had
+// been dropped and no new pair written.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 51, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 510, 'post_type' => 'revision', 'post_parent' => 51, 'post_content' => $source, 'post_date_gmt' => '2026-08-18 20:00:00' ) );
+update_post_meta( 51, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-18 21:00:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter         = new UAMS_C2S_Test_Converter();
+$converter->canned = array( 'converted' => 0 ); // Nothing convertible in the restore.
+$result            = $converter->repair_post( 51, true );
+
+uams_c2s_test_is( 'no-op re-conversion is not reported as repaired', empty( $result['repaired'] ), true );
+uams_c2s_test_is( 'no-op re-conversion says why', $result['reason'], 'not_converted' );
+uams_c2s_test_is( 'no-op re-conversion still restored the content', get_post( 51 )->post_content, $source );
+
+// The healthy path still works end to end.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 52, 'post_content' => $mangled ) );
+uams_c2s_test_post( array( 'ID' => 520, 'post_type' => 'revision', 'post_parent' => 52, 'post_content' => $source, 'post_date_gmt' => '2026-08-18 20:00:00' ) );
+update_post_meta( 52, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-18 21:00:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter         = new UAMS_C2S_Test_Converter();
+$converter->canned = array( 'content' => $converted, 'converted' => 2 );
+$result            = $converter->repair_post( 52, true );
+
+uams_c2s_test_is( 'healthy repair reports repaired', ! empty( $result['repaired'] ), true );
+uams_c2s_test_is( 'healthy repair restored from the revision', $result['source'], 'revision' );
+
+/* -------------------------------------------------------------------------
+ * F25 — drive convert_post() for real, so the backup write is covered
+ *
+ * Acceptance test for the fix: deleting wp_slash() from the add_post_meta()
+ * call in convert_post() must turn 'backup round-trips byte-identically' red.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- convert_post()\n";
+
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 60, 'post_content' => $source ) );
+// Deliberately non-monotonic: the newest revision by date is NOT the highest ID.
+uams_c2s_test_post( array( 'ID' => 605, 'post_type' => 'revision', 'post_parent' => 60, 'post_content' => $source, 'post_date_gmt' => '2026-08-01 09:00:00' ) );
+uams_c2s_test_post( array( 'ID' => 601, 'post_type' => 'revision', 'post_parent' => 60, 'post_content' => $source, 'post_date_gmt' => '2026-08-18 09:00:00' ) );
+
+$converter         = new UAMS_C2S_Test_Converter();
+$converter->canned = array( 'content' => $converted, 'converted' => 3 );
+$result            = $converter->convert_post( 60 );
+
+uams_c2s_test_is( 'convert_post reports updated', ! empty( $result['updated'] ), true );
+uams_c2s_test_is( 'converted content is stored intact', get_post( 60 )->post_content, $converted );
+uams_c2s_test_is(
+	'backup round-trips byte-identically',
+	get_post_meta( 60, UAMS_C2S_Converter::BACKUP_META, true ),
+	$source
+);
+uams_c2s_test_is(
+	'backup is not damaged',
+	UAMS_C2S_Converter::looks_damaged( get_post_meta( 60, UAMS_C2S_Converter::BACKUP_META, true ) ),
+	false
+);
+
+$record = get_post_meta( 60, UAMS_C2S_Converter::CONVERTED_META, true );
+
+uams_c2s_test_is( 'conversion record names this version', $record['version'], 'test' );
+uams_c2s_test_is( 'conversion record counts the blocks', (int) $record['converted'], 3 );
+
+// A second conversion must not replace a good backup with the converted content.
+$converter2         = new UAMS_C2S_Test_Converter();
+$converter2->canned = array( 'content' => $converted, 'converted' => 1 );
+$converter2->convert_post( 60 );
+
+uams_c2s_test_is(
+	'a second conversion leaves the original backup alone',
+	get_post_meta( 60, UAMS_C2S_Converter::BACKUP_META, true ),
+	$source
+);
+
 uams_c2s_test_done();

@@ -434,6 +434,12 @@ class UAMS_C2S_CLI {
 		$skipped  = 0;
 		$failed   = 0;
 
+		$reasons = array(
+			'clean'         => 'is not damaged; nothing to repair',
+			'mismatch'      => 'was refused: its restore source does not match the content that was converted, so repairing would discard the difference. Compare them by hand',
+			'not_converted' => 'was restored to its pre-conversion content, but it held no Content block to convert, so it is listed for conversion again rather than repaired',
+		);
+
 		foreach ( $ids as $id ) {
 			$result = $converter->repair_post( $id, true );
 
@@ -445,6 +451,15 @@ class UAMS_C2S_CLI {
 
 			if ( empty( $result['repaired'] ) ) {
 				++$skipped;
+
+				$reason = isset( $result['reason'] ) ? $result['reason'] : 'clean';
+
+				// A refusal is not the same as a no-op, and 'mismatch' in
+				// particular is the one an operator has to act on.
+				if ( isset( $reasons[ $reason ] ) && 'clean' !== $reason ) {
+					WP_CLI::warning( sprintf( '#%d %s.', $id, $reasons[ $reason ] ) );
+				}
+
 				continue;
 			}
 
@@ -462,7 +477,7 @@ class UAMS_C2S_CLI {
 		}
 
 		WP_CLI::success(
-			sprintf( '%d post(s) repaired, %d already clean, %d failed.', $repaired, $skipped, $failed )
+			sprintf( '%d post(s) repaired, %d not repaired, %d failed.', $repaired, $skipped, $failed )
 		);
 	}
 }

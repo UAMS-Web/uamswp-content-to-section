@@ -390,17 +390,21 @@ class UAMS_C2S_Converter {
 		}
 
 		if ( ! $force && ! self::looks_damaged( $post->post_content ) ) {
-			return array(
-				'post_id'  => (int) $post->ID,
-				'repaired' => false,
-				'reason'   => 'clean',
-			);
+			return $this->refusal( $post, 'clean' );
 		}
 
 		$source = $this->restore_source( $post );
 
 		if ( is_wp_error( $source ) ) {
 			return $source;
+		}
+
+		// Refusing a restore that provably is not what was converted is a
+		// property of the repair, not of one caller. Deciding it here means the
+		// single-post button, the batch run and WP-CLI cannot disagree about it,
+		// and the resolution is not computed twice to answer the same question.
+		if ( 'mismatch' === $source['verified'] ) {
+			return $this->refusal( $post, 'mismatch' );
 		}
 
 		$restored = $this->write_content( $post->ID, $source['content'] );
@@ -421,11 +425,36 @@ class UAMS_C2S_Converter {
 			return $result;
 		}
 
+		// convert_post() reports updated => false when the restored content held
+		// no Content block, having written neither a backup nor a record. Both
+		// metas are already gone by then, so treating "not an error" as "repaired"
+		// left the post outside the safety net while announcing success. The post
+		// itself is fine -- it holds its restored pre-conversion content and will
+		// reappear in the conversion queue -- but the caller has to be told.
+		if ( empty( $result['updated'] ) ) {
+			return $this->refusal( $post, 'not_converted' );
+		}
+
 		$result['repaired'] = true;
 		$result['source']   = $source['source'];
 		$result['label']    = $source['label'];
 
 		return $result;
+	}
+
+	/**
+	 * A repair that declined to act, and why.
+	 *
+	 * @param WP_Post $post   Post.
+	 * @param string  $reason 'clean', 'mismatch' or 'not_converted'.
+	 * @return array{post_id:int,repaired:false,reason:string}
+	 */
+	protected function refusal( WP_Post $post, $reason ) {
+		return array(
+			'post_id'  => (int) $post->ID,
+			'repaired' => false,
+			'reason'   => $reason,
+		);
 	}
 
 	/**
@@ -695,32 +724,31 @@ class UAMS_C2S_Converter {
 		if ( ! empty( $meta['source_revision'] ) ) {
 			$revision = get_post( (int) $meta['source_revision'] );
 
-			if ( $revision && 'revision' === $revision->post_type && (int) $revision->post_parent === (int) $post->ID ) {
+			// A recorded id says which revision to look at, not that the content
+			// behind it is fit to restore. It gets the same content checks as a
+			// revision found by searching -- a recorded id pointing at damaged or
+			// already-converted markup was the one way mangled content could be
+			// written back over a post while reporting success.
+			if ( $revision
+				&& 'revision' === $revision->post_type
+				&& (int) $revision->post_parent === (int) $post->ID
+				&& $this->usable_revision( $revision, $post )
+			) {
 				return $revision;
 			}
 		}
 
 		$cutoff = ! empty( $meta['time'] ) ? (int) $meta['time'] : 0;
-		$needle = '<!-- wp:' . self::SOURCE_BLOCK;
 
 		foreach ( $this->revisions( $post->ID ) as $revision ) {
 			// Anything saved after the conversion is a later edit, not a source.
+			// Only the search needs this; a recorded id is captured before the
+			// update and is pre-conversion by construction.
 			if ( $cutoff && strtotime( $revision->post_date_gmt . ' +0000' ) > $cutoff ) {
 				continue;
 			}
 
-			// The pre-conversion content necessarily still had a Content block.
-			if ( false === strpos( $revision->post_content, $needle ) ) {
-				continue;
-			}
-
-			// The conversion's own revision, when nothing was edited since.
-			if ( $revision->post_content === $post->post_content ) {
-				continue;
-			}
-
-			// Never restore markup that is already mangled.
-			if ( self::looks_damaged( $revision->post_content ) ) {
+			if ( ! $this->usable_revision( $revision, $post ) ) {
 				continue;
 			}
 
@@ -728,6 +756,36 @@ class UAMS_C2S_Converter {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Is this revision's content fit to restore over the post?
+	 *
+	 * The three content-level guards, shared by both branches of
+	 * pre_conversion_revision() so that neither can accept what the other would
+	 * reject.
+	 *
+	 * @param WP_Post $revision Candidate revision.
+	 * @param WP_Post $post     Post being restored.
+	 * @return bool
+	 */
+	protected function usable_revision( WP_Post $revision, WP_Post $post ) {
+		// The pre-conversion content necessarily still had a Content block.
+		if ( false === strpos( $revision->post_content, '<!-- wp:' . self::SOURCE_BLOCK ) ) {
+			return false;
+		}
+
+		// The conversion's own revision, when nothing was edited since.
+		if ( $revision->post_content === $post->post_content ) {
+			return false;
+		}
+
+		// Never restore markup that is already mangled.
+		if ( self::looks_damaged( $revision->post_content ) ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
