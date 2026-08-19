@@ -181,4 +181,43 @@ $restore   = $converter->source( 6 );
 
 uams_c2s_test_is( 'skips autosaves and later edits', $restore['label'], 'revision #60 (2026-08-18 20:00:00 GMT)' );
 
+/* -------------------------------------------------------------------------
+ * Attribution: damage without a conversion record is not this plugin's doing
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- repair_plan attribution\n";
+
+// Damaged, but nothing here ever ran a conversion.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 7, 'post_content' => $mangled ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 7 );
+
+uams_c2s_test_is( 'no conversion record: still reported damaged', $plan['damaged'], true );
+uams_c2s_test_is( 'no conversion record: attribution left empty', $plan['converted'], array() );
+uams_c2s_test_is( 'no conversion record: shows what matched', false !== strpos( $plan['sample'], 'u003c' ), true );
+
+// Damaged and converted by this plugin.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 8, 'post_content' => $mangled ) );
+update_post_meta( 8, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.0' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 8 );
+
+uams_c2s_test_is( 'conversion record is carried through', $plan['converted']['version'], '1.0.0' );
+
+// A clean post reports nothing at all.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 9, 'post_content' => $converted ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 9 );
+
+uams_c2s_test_is( 'clean post: not damaged', $plan['damaged'], false );
+uams_c2s_test_is( 'clean post: no sample', $plan['sample'], '' );
+
+uams_c2s_test_is( 'damage_sample() on clean markup is empty', UAMS_C2S_Converter::damage_sample( $converted ), '' );
+
 uams_c2s_test_done();

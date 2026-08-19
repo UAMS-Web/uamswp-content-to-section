@@ -373,15 +373,31 @@ class UAMS_C2S_CLI {
 				$plan = $converter->repair_plan( $id );
 
 				$rows[] = array(
-					'ID'       => $id,
-					'title'    => get_the_title( $id ),
-					'damaged'  => $plan['damaged'] ? 'yes' : 'no',
-					'restores' => $plan['error'] ? '' : $plan['label'],
-					'blocker'  => $plan['error'],
+					'ID'        => $id,
+					'title'     => get_the_title( $id ),
+					'damaged'   => $plan['damaged'] ? 'yes' : 'no',
+					'converted' => empty( $plan['converted'] )
+						? 'no record'
+						: sprintf( 'v%s', isset( $plan['converted']['version'] ) ? $plan['converted']['version'] : '?' ),
+					'restores'  => $plan['error'] ? '' : $plan['label'],
+					'blocker'   => $plan['error'],
 				);
 			}
 
-			WP_CLI\Utils\format_items( 'table', $rows, array( 'ID', 'title', 'damaged', 'restores', 'blocker' ) );
+			WP_CLI\Utils\format_items( 'table', $rows, array( 'ID', 'title', 'damaged', 'converted', 'restores', 'blocker' ) );
+
+			foreach ( $rows as $row ) {
+				if ( 'no record' === $row['converted'] && 'yes' === $row['damaged'] ) {
+					WP_CLI::warning(
+						sprintf(
+							'#%d is damaged but carries no conversion record, so this plugin did not cause it. Matched: %s',
+							$row['ID'],
+							$converter->repair_plan( $row['ID'] )['sample']
+						)
+					);
+				}
+			}
+
 			WP_CLI::success( 'Dry run. Nothing was saved.' );
 
 			return;
