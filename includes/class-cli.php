@@ -406,8 +406,16 @@ class UAMS_C2S_CLI {
 					'converted' => empty( $plan['converted'] )
 						? 'no record'
 						: sprintf( 'v%s', isset( $plan['converted']['version'] ) ? $plan['converted']['version'] : '?' ),
-					'restores'  => $plan['error'] ? '' : $plan['label'],
-					'blocker'   => $plan['error'],
+					// A mismatch is refused by repair_post(), so the dry run has to
+					// report it as a blocker. Showing the revision it would have
+					// restored from, with an empty blocker, promised work the run
+					// will decline.
+					'restores'  => ( $plan['error'] || 'mismatch' === $plan['verified'] ) ? '' : $plan['label'],
+					'blocker'   => $plan['error']
+						? $plan['error']
+						: ( 'mismatch' === $plan['verified']
+							? __( 'restore does not match the backup; compare by hand', 'uams-c2s' )
+							: '' ),
 				);
 			}
 
