@@ -140,16 +140,6 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
-	 * Count posts containing at least one Content block.
-	 *
-	 * @param string $post_type Optional post type filter.
-	 * @return int
-	 */
-	public static function count( $post_type = '' ) {
-		return count( self::find( array( 'post_type' => $post_type ) ) );
-	}
-
-	/**
 	 * Count posts whose content contains a literal string.
 	 *
 	 * @param string $needle Substring to look for.
@@ -365,26 +355,4 @@ class UAMS_C2S_Scanner {
 		}
 	}
 
-	/**
-	 * Post types that currently hold Content blocks.
-	 *
-	 * @return array<string,int> Post type slug => count.
-	 */
-	public static function post_type_counts() {
-		$counts = array();
-
-		foreach ( self::find() as $id ) {
-			$type = get_post_type( $id );
-
-			if ( ! $type ) {
-				continue;
-			}
-
-			$counts[ $type ] = isset( $counts[ $type ] ) ? $counts[ $type ] + 1 : 1;
-		}
-
-		ksort( $counts );
-
-		return $counts;
-	}
 }
