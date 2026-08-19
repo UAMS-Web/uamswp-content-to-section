@@ -370,13 +370,30 @@ class UAMS_C2S_HTML_To_Blocks {
 		$classes = $this->class_list( $node );
 		$align   = $this->text_align( $classes );
 
+		// Every class text_align() recognises comes out first, so what is left is
+		// purely the author's. Source that already carried has-text-align-* used
+		// to keep it here and be given it a second time below, emitting
+		// class="has-text-align-center has-text-align-center".
+		$extra = array_values(
+			array_diff(
+				$classes,
+				array(
+					'text-left',
+					'text-center',
+					'text-right',
+					'has-text-align-left',
+					'has-text-align-center',
+					'has-text-align-right',
+				)
+			)
+		);
+
+		$classes = $extra;
+
 		if ( $align ) {
 			$attrs['align'] = $align;
 			$classes[]      = 'has-text-align-' . $align;
 		}
-
-		$classes = array_values( array_diff( $classes, array( 'text-left', 'text-center', 'text-right' ) ) );
-		$extra   = array_values( array_diff( $classes, array( 'has-text-align-' . $align ) ) );
 
 		if ( $extra ) {
 			$attrs['className'] = implode( ' ', $extra );
