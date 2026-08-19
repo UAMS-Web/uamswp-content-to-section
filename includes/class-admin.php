@@ -441,6 +441,22 @@ class UAMS_C2S_Admin {
 			),
 		);
 
+		// Diagnostic: answers whether the converter's legacy flat-attribute
+		// tolerance is doing anything on this site. Only worth computing while
+		// Content blocks remain. Remove this row and count_flat_format() once
+		// the answer is known.
+		if ( $status['content'] > 0 ) {
+			$flat = UAMS_C2S_Scanner::count_flat_format();
+
+			$rows[] = array(
+				__( 'Content blocks in the legacy flat format', 'uams-c2s' ),
+				$flat,
+				$flat > 0
+					? __( 'These store their fields outside `data`. The converter reads them correctly, but the Geo-targeted column below does not — treat that column as unreliable until they are converted.', 'uams-c2s' )
+					: __( 'None. Every Content block nests its fields under `data`, so the converter\'s tolerance for the older layout is unused on this site.', 'uams-c2s' ),
+			);
+		}
+
 		?>
 		<h2><?php esc_html_e( 'Site status', 'uams-c2s' ); ?></h2>
 
