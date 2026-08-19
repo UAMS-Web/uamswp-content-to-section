@@ -310,57 +310,6 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
-	 * How many Content blocks store their fields flat instead of under `data`.
-	 *
-	 * UAMS_C2S_Converter::block_data() tolerates a legacy ACF layout that puts
-	 * field values at the top level of the block's attributes. Whether any such
-	 * block still exists is not a guess worth making: if this returns 0 the
-	 * tolerance is dead code and can go, and if it does not, Scanner::tally()
-	 * is undercounting geo-targeted blocks because it only reads `data`.
-	 *
-	 * Diagnostic. Delete this and its Site status row once the question is
-	 * answered for a given site.
-	 *
-	 * @return int
-	 */
-	public static function count_flat_format() {
-		$flat = 0;
-
-		foreach ( self::find() as $id ) {
-			$post = get_post( $id );
-
-			if ( ! $post ) {
-				continue;
-			}
-
-			self::tally_flat( parse_blocks( $post->post_content ), $flat );
-		}
-
-		return $flat;
-	}
-
-	/**
-	 * Walk a block tree counting flat-format Content blocks.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @param int     $flat   Running count, by reference.
-	 */
-	protected static function tally_flat( array $blocks, &$flat ) {
-		foreach ( $blocks as $block ) {
-			if ( isset( $block['blockName'] )
-				&& UAMS_C2S_Converter::SOURCE_BLOCK === $block['blockName']
-				&& ! isset( $block['attrs']['data'] )
-			) {
-				++$flat;
-			}
-
-			if ( ! empty( $block['innerBlocks'] ) ) {
-				self::tally_flat( $block['innerBlocks'], $flat );
-			}
-		}
-	}
-
-	/**
 	 * Summarise one post: how many blocks, and whether any are geo-targeted.
 	 *
 	 * @param int|WP_Post $post Post.

@@ -380,16 +380,22 @@ uams_c2s_test_is( 'a mixed request keeps only the valid part', UAMS_C2S_Scanner:
 echo "\n-- block field reading\n";
 
 $nested = array( 'name' => 'acf/uams-content', 'data' => array( 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) ) );
-$flat   = array( 'name' => 'acf/uams-content', 'align' => 'full', 'mode' => 'preview', 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) );
 
 uams_c2s_test_is( 'nested attributes are read from data', UAMS_C2S_Converter::block_data( $nested ), $nested['data'] );
+uams_c2s_test_is( 'a non-array data attribute reads as empty', UAMS_C2S_Converter::block_data( array( 'data' => 'nonsense' ) ), array() );
+
+// The legacy flat layout is deliberately no longer read: all three target sites
+// were measured and none of the 91 remaining Content blocks uses it. What must
+// not happen is reading it as empty *quietly*.
 uams_c2s_test_is(
-	'flat attributes are read with the reserved keys stripped',
-	UAMS_C2S_Converter::block_data( $flat ),
-	array( 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) )
+	'a block with no data attribute reads as empty',
+	UAMS_C2S_Converter::block_data( array( 'name' => 'acf/uams-content', 'align' => 'full', 'content_heading' => 'Program' ) ),
+	array()
 );
-uams_c2s_test_is( 'both layouts agree on the geo fields', UAMS_C2S_Converter::block_data( $nested ), UAMS_C2S_Converter::block_data( $flat ) );
-uams_c2s_test_is( 'attributes with neither shape read as empty', UAMS_C2S_Converter::block_data( array( 'name' => 'acf/uams-content', 'align' => 'full' ) ), array() );
+// Scanner::tally() calls block_data() rather than reaching into `data` itself,
+// so the two cannot diverge again. Asserting that end to end needs a real
+// parse_blocks(), which this harness deliberately does not fake -- a stub block
+// parser would prove agreement with itself, not with WordPress.
 
 /* -------------------------------------------------------------------------
  * F6 — a recorded source_revision is an address, not a warrant
