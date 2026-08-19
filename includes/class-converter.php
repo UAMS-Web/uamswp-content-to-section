@@ -19,6 +19,16 @@ class UAMS_C2S_Converter {
 	const CONVERTED_META = '_uams_c2s_converted';
 
 	/**
+	 * Signature of block markup that has lost a level of backslashes.
+	 *
+	 * serialize_block_attributes() escapes the characters < > & " and -- inside
+	 * a block's attribute JSON as backslash-u003c, u003e, u0026, u0022 and
+	 * u002d. A bare "u003c" with no backslash in front of it therefore means
+	 * something ran stripslashes() over the markup -- see write_content().
+	 */
+	const DAMAGE_PATTERN = '/(?<!\\\\)u00(?:22|26|2d|3c|3e)/i';
+
+	/**
 	 * Conversion arguments.
 	 *
 	 * @var array<string,mixed>
@@ -277,31 +287,21 @@ class UAMS_C2S_Converter {
 			return $result;
 		}
 
+		// Note the newest revision before the update so a later revert knows
+		// exactly which one holds the pre-conversion content, rather than having
+		// to guess from timestamps.
+		$source_revision = $this->latest_revision_id( $post->ID );
+
 		// Keep the pre-conversion content addressable for a one-click revert,
 		// alongside the revision WordPress stores on update.
+		//
+		// add_post_meta() runs wp_unslash() on the value, so it has to be
+		// slashed on the way in or the backup is stored damaged.
 		if ( ! metadata_exists( 'post', $post->ID, self::BACKUP_META ) ) {
-			add_post_meta( $post->ID, self::BACKUP_META, $result['original'], true );
+			add_post_meta( $post->ID, self::BACKUP_META, wp_slash( $result['original'] ), true );
 		}
 
-		$kses_was_active = false;
-
-		if ( ! current_user_can( 'unfiltered_html' ) && has_filter( 'content_save_pre', 'wp_filter_post_kses' ) ) {
-			// Block markup must survive intact; kses would mangle the comments.
-			kses_remove_filters();
-			$kses_was_active = true;
-		}
-
-		$updated = wp_update_post(
-			array(
-				'ID'           => $post->ID,
-				'post_content' => $result['content'],
-			),
-			true
-		);
-
-		if ( $kses_was_active ) {
-			kses_init_filters();
-		}
+		$updated = $this->write_content( $post->ID, $result['content'] );
 
 		if ( is_wp_error( $updated ) ) {
 			return $updated;
@@ -311,11 +311,12 @@ class UAMS_C2S_Converter {
 			$post->ID,
 			self::CONVERTED_META,
 			array(
-				'time'      => time(),
-				'user'      => get_current_user_id(),
-				'converted' => $result['converted'],
-				'skipped'   => $result['skipped'],
-				'version'   => UAMS_C2S_VERSION,
+				'time'            => time(),
+				'user'            => get_current_user_id(),
+				'converted'       => $result['converted'],
+				'skipped'         => $result['skipped'],
+				'version'         => UAMS_C2S_VERSION,
+				'source_revision' => $source_revision,
 			)
 		);
 
@@ -337,30 +338,13 @@ class UAMS_C2S_Converter {
 			return new WP_Error( 'uams_c2s_no_post', __( 'Post not found.', 'uams-c2s' ) );
 		}
 
-		if ( ! metadata_exists( 'post', $post->ID, self::BACKUP_META ) ) {
-			return new WP_Error( 'uams_c2s_no_backup', __( 'No pre-conversion backup is stored for this post.', 'uams-c2s' ) );
+		$source = $this->restore_source( $post );
+
+		if ( is_wp_error( $source ) ) {
+			return $source;
 		}
 
-		$backup = get_post_meta( $post->ID, self::BACKUP_META, true );
-
-		$kses_was_active = false;
-
-		if ( ! current_user_can( 'unfiltered_html' ) && has_filter( 'content_save_pre', 'wp_filter_post_kses' ) ) {
-			kses_remove_filters();
-			$kses_was_active = true;
-		}
-
-		$updated = wp_update_post(
-			array(
-				'ID'           => $post->ID,
-				'post_content' => $backup,
-			),
-			true
-		);
-
-		if ( $kses_was_active ) {
-			kses_init_filters();
-		}
+		$updated = $this->write_content( $post->ID, $source['content'] );
 
 		if ( is_wp_error( $updated ) ) {
 			return $updated;
@@ -370,5 +354,301 @@ class UAMS_C2S_Converter {
 		delete_post_meta( $post->ID, self::CONVERTED_META );
 
 		return true;
+	}
+
+	/**
+	 * Re-run a conversion that was written by a build which mangled the markup.
+	 *
+	 * Restores the pre-conversion content, drops the equally-mangled backup, and
+	 * converts again with the current code. The conversion options come from
+	 * this instance, so pass the same ones the original run used.
+	 *
+	 * @param int|WP_Post $post Post.
+	 * @return array|WP_Error
+	 */
+	public function repair_post( $post ) {
+		$post = get_post( $post );
+
+		if ( ! $post ) {
+			return new WP_Error( 'uams_c2s_no_post', __( 'Post not found.', 'uams-c2s' ) );
+		}
+
+		if ( ! self::looks_damaged( $post->post_content ) ) {
+			return array(
+				'post_id'  => (int) $post->ID,
+				'repaired' => false,
+				'reason'   => 'clean',
+			);
+		}
+
+		$source = $this->restore_source( $post );
+
+		if ( is_wp_error( $source ) ) {
+			return $source;
+		}
+
+		$restored = $this->write_content( $post->ID, $source['content'] );
+
+		if ( is_wp_error( $restored ) ) {
+			return $restored;
+		}
+
+		// The 1.0.0 backup went through the same unslashing as the content, so
+		// it is no more trustworthy than what we just replaced. Drop both metas
+		// and let the re-run write a clean pair.
+		delete_post_meta( $post->ID, self::BACKUP_META );
+		delete_post_meta( $post->ID, self::CONVERTED_META );
+
+		$result = $this->convert_post( $post->ID );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$result['repaired'] = true;
+		$result['source']   = $source['source'];
+		$result['label']    = $source['label'];
+
+		return $result;
+	}
+
+	/**
+	 * Report what repair_post() would do, without writing anything.
+	 *
+	 * @param int|WP_Post $post Post.
+	 * @return array{post_id:int,damaged:bool,source:string,label:string,error:string}
+	 */
+	public function repair_plan( $post ) {
+		$post = get_post( $post );
+
+		$plan = array(
+			'post_id' => $post ? (int) $post->ID : 0,
+			'damaged' => false,
+			'source'  => '',
+			'label'   => '',
+			'error'   => '',
+		);
+
+		if ( ! $post ) {
+			$plan['error'] = __( 'Post not found.', 'uams-c2s' );
+
+			return $plan;
+		}
+
+		if ( ! self::looks_damaged( $post->post_content ) ) {
+			return $plan;
+		}
+
+		$plan['damaged'] = true;
+		$source          = $this->restore_source( $post );
+
+		if ( is_wp_error( $source ) ) {
+			$plan['error'] = $source->get_error_message();
+
+			return $plan;
+		}
+
+		$plan['source'] = $source['source'];
+		$plan['label']  = $source['label'];
+
+		return $plan;
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Reading and writing content safely
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Does this markup show the stripped-backslash signature?
+	 *
+	 * @param string $content Post content.
+	 * @return bool
+	 */
+	public static function looks_damaged( $content ) {
+		return (bool) preg_match( self::DAMAGE_PATTERN, (string) $content );
+	}
+
+	/**
+	 * Write post content without letting WordPress chew on the block markup.
+	 *
+	 * wp_update_post() runs wp_unslash() over everything it is handed, and
+	 * serialize_blocks() writes backslash escapes into every block's attribute
+	 * JSON. Passing unslashed content therefore eats one backslash from each
+	 * escape and rewrites the markup as literal "u003c" text -- see
+	 * self::DAMAGE_PATTERN.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $content Unslashed post content.
+	 * @return int|WP_Error
+	 */
+	protected function write_content( $post_id, $content ) {
+		$kses_was_active = false;
+
+		if ( ! current_user_can( 'unfiltered_html' ) && has_filter( 'content_save_pre', 'wp_filter_post_kses' ) ) {
+			// Block markup must survive intact; kses would mangle the comments.
+			kses_remove_filters();
+			$kses_was_active = true;
+		}
+
+		$updated = wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => wp_slash( $content ),
+			),
+			true
+		);
+
+		if ( $kses_was_active ) {
+			kses_init_filters();
+		}
+
+		return $updated;
+	}
+
+	/**
+	 * Best available copy of a post's pre-conversion content.
+	 *
+	 * A revision is preferred over the stored backup: plugin 1.0.0 handed the
+	 * backup to add_post_meta() unslashed, which strips the same backslashes it
+	 * stripped from the content, so on those posts the backup is damaged too.
+	 *
+	 * @param WP_Post $post Post.
+	 * @return array{content:string,source:string,label:string}|WP_Error
+	 */
+	protected function restore_source( WP_Post $post ) {
+		$revision = $this->pre_conversion_revision( $post );
+
+		if ( $revision ) {
+			return array(
+				'content' => $revision->post_content,
+				'source'  => 'revision',
+				'label'   => sprintf(
+					/* translators: 1: revision ID, 2: revision date. */
+					__( 'revision #%1$d (%2$s GMT)', 'uams-c2s' ),
+					$revision->ID,
+					$revision->post_date_gmt
+				),
+			);
+		}
+
+		if ( ! metadata_exists( 'post', $post->ID, self::BACKUP_META ) ) {
+			return new WP_Error(
+				'uams_c2s_no_backup',
+				__( 'No pre-conversion backup or usable revision is stored for this post.', 'uams-c2s' )
+			);
+		}
+
+		$backup = get_post_meta( $post->ID, self::BACKUP_META, true );
+
+		if ( self::looks_damaged( $backup ) ) {
+			return new WP_Error(
+				'uams_c2s_damaged_backup',
+				__( 'The stored backup was written by plugin 1.0.0 and lost a level of backslashes, and no clean pre-conversion revision survives. Restore this post from a database backup instead.', 'uams-c2s' )
+			);
+		}
+
+		return array(
+			'content' => (string) $backup,
+			'source'  => 'backup',
+			'label'   => __( 'stored backup', 'uams-c2s' ),
+		);
+	}
+
+	/**
+	 * The revision holding this post's pre-conversion content, if one survives.
+	 *
+	 * Conversions from 1.0.1 onwards record the revision ID directly. Older ones
+	 * did not, so fall back to the newest revision that still contains a Content
+	 * block, is not the conversion's own revision, and is not itself damaged.
+	 *
+	 * @param int|WP_Post $post Post.
+	 * @return WP_Post|null
+	 */
+	public function pre_conversion_revision( $post ) {
+		$post = get_post( $post );
+
+		if ( ! $post ) {
+			return null;
+		}
+
+		$meta = get_post_meta( $post->ID, self::CONVERTED_META, true );
+		$meta = is_array( $meta ) ? $meta : array();
+
+		if ( ! empty( $meta['source_revision'] ) ) {
+			$revision = get_post( (int) $meta['source_revision'] );
+
+			if ( $revision && 'revision' === $revision->post_type && (int) $revision->post_parent === (int) $post->ID ) {
+				return $revision;
+			}
+		}
+
+		$cutoff = ! empty( $meta['time'] ) ? (int) $meta['time'] : 0;
+		$needle = '<!-- wp:' . self::SOURCE_BLOCK;
+
+		foreach ( $this->revisions( $post->ID ) as $revision ) {
+			// Anything saved after the conversion is a later edit, not a source.
+			if ( $cutoff && strtotime( $revision->post_date_gmt . ' +0000' ) > $cutoff ) {
+				continue;
+			}
+
+			// The pre-conversion content necessarily still had a Content block.
+			if ( false === strpos( $revision->post_content, $needle ) ) {
+				continue;
+			}
+
+			// The conversion's own revision, when nothing was edited since.
+			if ( $revision->post_content === $post->post_content ) {
+				continue;
+			}
+
+			// Never restore markup that is already mangled.
+			if ( self::looks_damaged( $revision->post_content ) ) {
+				continue;
+			}
+
+			return $revision;
+		}
+
+		return null;
+	}
+
+	/**
+	 * A post's real revisions, newest first, with autosaves left out.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return WP_Post[]
+	 */
+	protected function revisions( $post_id ) {
+		$revisions = wp_get_post_revisions(
+			$post_id,
+			array(
+				'order'   => 'DESC',
+				'orderby' => 'date ID',
+			)
+		);
+
+		$out = array();
+
+		foreach ( $revisions as $revision ) {
+			if ( wp_is_post_autosave( $revision ) ) {
+				continue;
+			}
+
+			$out[] = $revision;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * ID of a post's newest non-autosave revision, or 0 when it has none.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int
+	 */
+	protected function latest_revision_id( $post_id ) {
+		$revisions = $this->revisions( $post_id );
+
+		return $revisions ? (int) $revisions[0]->ID : 0;
 	}
 }

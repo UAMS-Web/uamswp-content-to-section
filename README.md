@@ -45,6 +45,8 @@ per-post block count and a geo-targeting flag.
 - **Convert** — converts one post.
 - **Convert all** — walks the whole site in batches of 10.
 - **Revert** — restores the exact pre-conversion content.
+- **Repair** — appears only if 1.0.0 left damaged pages behind. See
+  [Repairing 1.0.0 conversions](#repairing-100-conversions).
 
 ### 2. In the editor
 
@@ -70,6 +72,10 @@ wp uams-c2s convert 42 108 --demote-headings
 # Undo
 wp uams-c2s revert 42
 wp uams-c2s revert --all
+
+# Clean up after 1.0.0
+wp uams-c2s repair --all --dry-run
+wp uams-c2s repair --all
 ```
 
 ## What the WYSIWYG body becomes
@@ -116,16 +122,72 @@ Block renders its own `<h2>`, so any `<h1>`/`<h2>` in the body breaks the
 outline — the preview flags it, and *Demote headings* / `--demote-headings`
 rewrites them to `<h3>`.
 
+## Repairing 1.0.0 conversions
+
+**1.0.0 saved converted posts with mangled block markup. Upgrade before you
+convert anything else.**
+
+`wp_update_post()` runs `wp_unslash()` over whatever it is handed, and
+`serialize_blocks()` writes backslash escapes into every block's attribute JSON
+— core escapes `<`, `>`, `&`, `"` and `--` as `\u003c`, `\u003e`,
+`\u0026`, `\u0022` and `\u002d`. 1.0.0 passed the serialized content
+through unslashed, so
+one backslash was eaten from each escape and the attributes were rewritten as
+literal text:
+
+```
+before   "cta_bar_text":"\u003cp style=\u0022text-align: center\u0022\u003eContact\u003c\/p\u003e"
+after    "cta_bar_text":"u003cp style=u0022text-align: centeru0022u003eContactu003c/pu003e"
+```
+
+This hit **every block on a converted page**, not only the ones being converted,
+because the whole `post_content` went through the same write. It shows up
+soonest on ACF blocks that render a WYSIWYG field as text — the CTA bar is the
+usual first sighting.
+
+The same bug also damaged the `_uams_c2s_backup` meta, because `add_post_meta()`
+unslashes too. **Reverting a 1.0.0 conversion restores equally mangled content.**
+Repair therefore ignores the backup and restores from the WordPress revision
+saved before the conversion:
+
+```bash
+wp uams-c2s repair --all --dry-run   # what is damaged, and where it restores from
+wp uams-c2s repair --all             # restore from revision, then convert again
+```
+
+Tools → Content → Section grows a **Damaged conversions** table listing the same
+posts, with a per-post Repair button and the revision each one would come from.
+Posts with no surviving clean revision are listed with the reason and no button;
+those need a database backup.
+
+From 1.0.1 on, each conversion records the pre-conversion revision ID in
+`_uams_c2s_converted`, so revert and repair identify it exactly rather than
+inferring it.
+
 ## Safety
 
 - Every conversion writes a WordPress revision, plus a copy of the original
   `post_content` in the `_uams_c2s_backup` post meta for one-click revert.
+- Revert prefers the pre-conversion revision and falls back to that backup, and
+  refuses to restore markup that shows the 1.0.0 damage signature.
 - Uninstalling removes the plugin options but **keeps** the backups, so a
   revert is still possible after a reinstall.
 - All admin actions are nonce-checked and require `manage_options` plus
   `edit_post` on the target.
 - `kses` filtering is suspended only for the duration of the update, and only
   for users who lack `unfiltered_html` — block delimiters do not survive kses.
+
+## Tests
+
+```bash
+php tests/test-slashing.php
+```
+
+Regression cover for the 1.0.0 slashing bug: damage detection, that
+`write_content()` round-trips block markup byte-for-byte, and which source a
+revert or repair picks. `tests/stubs.php` fakes just enough WordPress to load
+the converter, including the fact that both `wp_update_post()` and
+`add_post_meta()` unslash what they are handed. No PHPUnit, no database.
 
 ## Filters
 

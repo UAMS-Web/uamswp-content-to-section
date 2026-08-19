@@ -293,4 +293,133 @@ class UAMS_C2S_CLI {
 
 		WP_CLI::success( sprintf( '%d post(s) reverted.', $reverted ) );
 	}
+
+	/**
+	 * Re-runs conversions that plugin 1.0.0 saved without slashing the markup.
+	 *
+	 * 1.0.0 handed the serialized blocks to wp_update_post() unslashed, so every
+	 * block attribute escape on a converted page was flattened into literal
+	 * "u003c" text. Repair restores the pre-conversion content from the post
+	 * revision saved before the conversion, then converts again with the current
+	 * code. The 1.0.0 backup meta is not used: it was written through the same
+	 * unslashing and is damaged in the same way.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<id>...]
+	 * : One or more post IDs. Omit to use --all.
+	 *
+	 * [--all]
+	 * : Repair every damaged post on the site.
+	 *
+	 * [--dry-run]
+	 * : Report what would be repaired, and from where, without saving.
+	 *
+	 * [--include-geo]
+	 * : Also convert geo-targeted blocks, dropping their region rules.
+	 *
+	 * [--demote-headings]
+	 * : Demote H1/H2 in the body to H3 so they nest under the section heading.
+	 *
+	 * [--list-format=<format>]
+	 * : List block markup to emit.
+	 * ---
+	 * default: v3
+	 * options:
+	 *   - v3
+	 *   - v2
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp uams-c2s repair --all --dry-run
+	 *     wp uams-c2s repair --all
+	 *     wp uams-c2s repair 42
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Associative arguments.
+	 */
+	public function repair( $args, $assoc_args ) {
+		$dry_run = (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
+
+		$options = array(
+			'include_geo'     => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'include-geo', false ),
+			'demote_headings' => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'demote-headings', false ),
+			'list_format'     => WP_CLI\Utils\get_flag_value( $assoc_args, 'list-format', 'v3' ),
+		);
+
+		$ids = array_map( 'absint', $args );
+
+		if ( ! $ids ) {
+			if ( ! WP_CLI\Utils\get_flag_value( $assoc_args, 'all', false ) ) {
+				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
+			}
+
+			$ids = UAMS_C2S_Scanner::find_damaged();
+		}
+
+		if ( ! $ids ) {
+			WP_CLI::success( 'No damaged conversions found.' );
+
+			return;
+		}
+
+		$converter = new UAMS_C2S_Converter( $options );
+
+		if ( $dry_run ) {
+			$rows = array();
+
+			foreach ( $ids as $id ) {
+				$plan = $converter->repair_plan( $id );
+
+				$rows[] = array(
+					'ID'       => $id,
+					'title'    => get_the_title( $id ),
+					'damaged'  => $plan['damaged'] ? 'yes' : 'no',
+					'restores' => $plan['error'] ? '' : $plan['label'],
+					'blocker'  => $plan['error'],
+				);
+			}
+
+			WP_CLI\Utils\format_items( 'table', $rows, array( 'ID', 'title', 'damaged', 'restores', 'blocker' ) );
+			WP_CLI::success( 'Dry run. Nothing was saved.' );
+
+			return;
+		}
+
+		$repaired = 0;
+		$skipped  = 0;
+		$failed   = 0;
+
+		foreach ( $ids as $id ) {
+			$result = $converter->repair_post( $id );
+
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+				WP_CLI::warning( sprintf( '#%d: %s', $id, $result->get_error_message() ) );
+				continue;
+			}
+
+			if ( empty( $result['repaired'] ) ) {
+				++$skipped;
+				continue;
+			}
+
+			++$repaired;
+
+			WP_CLI::log(
+				sprintf(
+					'#%d %s — restored from %s, %d block(s) re-converted',
+					$id,
+					get_the_title( $id ),
+					$result['label'],
+					$result['converted']
+				)
+			);
+		}
+
+		WP_CLI::success(
+			sprintf( '%d post(s) repaired, %d already clean, %d failed.', $repaired, $skipped, $failed )
+		);
+	}
 }
