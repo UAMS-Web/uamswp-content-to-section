@@ -236,21 +236,46 @@ class UAMS_C2S_Admin {
 
 		$converter = new UAMS_C2S_Converter( $options );
 
+		$plans = array();
+
+		foreach ( $ids as $id ) {
+			$plans[ $id ] = $converter->repair_plan( $id );
+		}
+
+		$ours = 0;
+
+		foreach ( $plans as $plan ) {
+			if ( ! empty( $plan['converted'] ) ) {
+				++$ours;
+			}
+		}
+
 		?>
-		<h2><?php esc_html_e( 'Damaged conversions', 'uams-c2s' ); ?></h2>
+		<h2><?php esc_html_e( 'Damaged block markup', 'uams-c2s' ); ?></h2>
 
 		<div class="notice notice-error inline">
 			<p>
 				<?php
 				printf(
 					/* translators: %d: number of posts. */
-					esc_html( _n( '%d post was converted by plugin 1.0.0, which saved the block markup without slashing it. Every block attribute escape on the page was flattened into literal "u003c" text.', '%d posts were converted by plugin 1.0.0, which saved the block markup without slashing it. Every block attribute escape on those pages was flattened into literal "u003c" text.', count( $ids ), 'uams-c2s' ) ),
-					count( $ids )
+					esc_html( _n( 'The block attribute JSON on %d post has lost a level of backslashes: escapes that should read backslash-u003c are stored as bare "u003c" text, so the affected block renders its attributes as literal text.', 'The block attribute JSON on %d posts has lost a level of backslashes: escapes that should read backslash-u003c are stored as bare "u003c" text, so the affected blocks render their attributes as literal text.', count( $plans ), 'uams-c2s' ) ),
+					count( $plans )
 				);
 				?>
 			</p>
 			<p>
-				<?php esc_html_e( 'Repair restores the pre-conversion content from the post revision saved before the conversion, then converts it again with the current code. The 1.0.0 backup is not used: it was stored through the same unslashing and is damaged in the same way.', 'uams-c2s' ); ?>
+				<?php
+				if ( $ours ) {
+					printf(
+						/* translators: 1: posts this plugin converted, 2: total damaged posts. */
+						esc_html__( '%1$d of the %2$d carry a conversion record from this plugin, so plugin 1.0.0 caused those: it saved converted content without slashing it. Repair restores the pre-conversion content from the revision saved before the conversion and converts it again with the current code. The 1.0.0 backup is not used, because add_post_meta() unslashed it the same way.', 'uams-c2s' ),
+						absint( $ours ),
+						count( $plans )
+					);
+				} else {
+					esc_html_e( 'None of them carry a conversion record from this plugin, so it did not cause this. Any code that writes post_content without wp_slash() leaves the same signature — an import, a REST or API update, or a search-and-replace. Check the evidence column before acting.', 'uams-c2s' );
+				}
+				?>
 			</p>
 		</div>
 
@@ -259,15 +284,15 @@ class UAMS_C2S_Admin {
 				<tr>
 					<th scope="col"><?php esc_html_e( 'Post', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Type', 'uams-c2s' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Status', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Converted by this plugin', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'What matched', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Restores from', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Actions', 'uams-c2s' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
-			<?php foreach ( $ids as $id ) : ?>
+			<?php foreach ( $plans as $id => $plan ) : ?>
 				<?php
-				$plan  = $converter->repair_plan( $id );
 				$title = get_the_title( $id );
 				$view  = $this->view_link( $id );
 				?>
@@ -276,13 +301,32 @@ class UAMS_C2S_Admin {
 						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ? $title : '(' . $id . ')' ); ?></a></strong>
 						<div class="row-actions">
 							<span>#<?php echo absint( $id ); ?></span>
+							| <span><?php echo esc_html( (string) get_post_status( $id ) ); ?></span>
 							<?php if ( $view ) : ?>
 								| <span><a href="<?php echo esc_url( $view['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $view['label'] ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'uams-c2s' ); ?></span></a></span>
 							<?php endif; ?>
 						</div>
 					</td>
 					<td><?php echo esc_html( (string) get_post_type( $id ) ); ?></td>
-					<td><?php echo esc_html( (string) get_post_status( $id ) ); ?></td>
+					<td>
+						<?php if ( ! empty( $plan['converted'] ) ) : ?>
+							<?php
+							$record = $plan['converted'];
+
+							echo esc_html(
+								sprintf(
+									/* translators: 1: plugin version, 2: date. */
+									__( 'yes — v%1$s, %2$s', 'uams-c2s' ),
+									isset( $record['version'] ) ? $record['version'] : '?',
+									isset( $record['time'] ) ? date_i18n( 'Y-m-d H:i', (int) $record['time'] ) : '?'
+								)
+							);
+							?>
+						<?php else : ?>
+							<em><?php esc_html_e( 'no record', 'uams-c2s' ); ?></em>
+						<?php endif; ?>
+					</td>
+					<td><code class="uams-c2s-sample"><?php echo esc_html( $plan['sample'] ); ?></code></td>
 					<td>
 						<?php if ( $plan['error'] ) : ?>
 							<span class="uams-c2s-flag"><?php echo esc_html( $plan['error'] ); ?></span>

@@ -155,10 +155,18 @@ wp uams-c2s repair --all --dry-run   # what is damaged, and where it restores fr
 wp uams-c2s repair --all             # restore from revision, then convert again
 ```
 
-Tools → Content → Section grows a **Damaged conversions** table listing the same
+Tools → Content → Section grows a **Damaged block markup** table listing the same
 posts, with a per-post Repair button and the revision each one would come from.
 Posts with no surviving clean revision are listed with the reason and no button;
 those need a database backup.
+
+**A damaged post is not proof this plugin damaged it.** Any code that writes
+`post_content` without `wp_slash()` leaves the same signature — an import, a
+REST or API update, a search-and-replace. The table therefore shows whether the
+post carries a conversion record from this plugin, and an excerpt of exactly
+what the detector matched, so you can tell the two apart before repairing.
+Repairing a post the plugin never converted would restore it to whatever
+revision predates the damage, which may not be what you want.
 
 From 1.0.1 on, each conversion records the pre-conversion revision ID in
 `_uams_c2s_converted`, so revert and repair identify it exactly rather than

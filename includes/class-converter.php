@@ -415,18 +415,26 @@ class UAMS_C2S_Converter {
 	/**
 	 * Report what repair_post() would do, without writing anything.
 	 *
+	 * `converted` carries this plugin's own conversion record, or an empty array
+	 * when it has none. Damage with no record did not come from a conversion
+	 * this plugin performed -- anything that writes post_content without
+	 * slashing it leaves the same signature -- so callers must not blame it on
+	 * the conversion.
+	 *
 	 * @param int|WP_Post $post Post.
-	 * @return array{post_id:int,damaged:bool,source:string,label:string,error:string}
+	 * @return array{post_id:int,damaged:bool,source:string,label:string,error:string,sample:string,converted:array}
 	 */
 	public function repair_plan( $post ) {
 		$post = get_post( $post );
 
 		$plan = array(
-			'post_id' => $post ? (int) $post->ID : 0,
-			'damaged' => false,
-			'source'  => '',
-			'label'   => '',
-			'error'   => '',
+			'post_id'   => $post ? (int) $post->ID : 0,
+			'damaged'   => false,
+			'source'    => '',
+			'label'     => '',
+			'error'     => '',
+			'sample'    => '',
+			'converted' => array(),
 		);
 
 		if ( ! $post ) {
@@ -439,8 +447,13 @@ class UAMS_C2S_Converter {
 			return $plan;
 		}
 
-		$plan['damaged'] = true;
-		$source          = $this->restore_source( $post );
+		$record = get_post_meta( $post->ID, self::CONVERTED_META, true );
+
+		$plan['damaged']   = true;
+		$plan['sample']    = self::damage_sample( $post->post_content );
+		$plan['converted'] = is_array( $record ) ? $record : array();
+
+		$source = $this->restore_source( $post );
 
 		if ( is_wp_error( $source ) ) {
 			$plan['error'] = $source->get_error_message();
@@ -466,6 +479,31 @@ class UAMS_C2S_Converter {
 	 */
 	public static function looks_damaged( $content ) {
 		return (bool) preg_match( self::DAMAGE_PATTERN, (string) $content );
+	}
+
+	/**
+	 * A short excerpt around the first stripped escape, as evidence.
+	 *
+	 * The detector cannot prove intent -- a page could in principle contain the
+	 * text "u003c" for innocent reasons -- so anything that reports damage should
+	 * show what it matched and let a human judge.
+	 *
+	 * @param string $content Post content.
+	 * @param int    $padding Characters of context on each side.
+	 * @return string Empty when nothing matched.
+	 */
+	public static function damage_sample( $content, $padding = 60 ) {
+		$content = (string) $content;
+
+		if ( ! preg_match( self::DAMAGE_PATTERN, $content, $match, PREG_OFFSET_CAPTURE ) ) {
+			return '';
+		}
+
+		$at    = (int) $match[0][1];
+		$start = max( 0, $at - $padding );
+		$slice = substr( $content, $start, $padding * 2 + strlen( $match[0][0] ) );
+
+		return ( $start > 0 ? '…' : '' ) . trim( $slice ) . '…';
 	}
 
 	/**
