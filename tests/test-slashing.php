@@ -347,4 +347,26 @@ $converter = new UAMS_C2S_Test_Converter();
 uams_c2s_test_is( 'clean v1.0.1 post is not queued for repair', $converter->repair_plan( 23 )['verified'], '' );
 uams_c2s_test_is( 'v1.0.1 backup verifies its revision too', $converter->source( 23 )['verified'], 'exact' );
 
+/* -------------------------------------------------------------------------
+ * Batch scope narrowing
+ *
+ * The scope arrives from a form post and decides how many published pages a
+ * click rewrites, so it has to be incapable of widening the run.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- batch scope\n";
+
+$all = UAMS_C2S_Scanner::statuses();
+
+uams_c2s_test_is( 'no scope means every scannable status', UAMS_C2S_Scanner::narrow_statuses( '' ), $all );
+uams_c2s_test_is( 'one status narrows to just it', UAMS_C2S_Scanner::narrow_statuses( 'draft' ), array( 'draft' ) );
+uams_c2s_test_is( 'several statuses narrow to those', UAMS_C2S_Scanner::narrow_statuses( array( 'draft', 'publish' ) ), array( 'publish', 'draft' ) );
+uams_c2s_test_is( 'case and stray characters are normalised', UAMS_C2S_Scanner::narrow_statuses( 'DRAFT' ), array( 'draft' ) );
+
+// The ones that matter: a scope must never reach a status the scan excludes.
+uams_c2s_test_is( 'an unscannable status yields nothing', UAMS_C2S_Scanner::narrow_statuses( 'trash' ), array() );
+uams_c2s_test_is( 'auto-draft cannot be smuggled in', UAMS_C2S_Scanner::narrow_statuses( 'auto-draft' ), array() );
+uams_c2s_test_is( 'a bogus status cannot widen the run', UAMS_C2S_Scanner::narrow_statuses( 'any' ), array() );
+uams_c2s_test_is( 'a mixed request keeps only the valid part', UAMS_C2S_Scanner::narrow_statuses( array( 'draft', 'trash' ) ), array( 'draft' ) );
+
 uams_c2s_test_done();

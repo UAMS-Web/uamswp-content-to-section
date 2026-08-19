@@ -100,6 +100,10 @@ class UAMS_C2S_CLI {
 	 * [--post_type=<post_type>]
 	 * : With --all, restrict to one post type.
 	 *
+	 * [--post_status=<post_status>]
+	 * : With --all, restrict to one post status — draft, publish, pending,
+	 * future or private. Comma-separate for several.
+	 *
 	 * [--dry-run]
 	 * : Report what would change without saving.
 	 *
@@ -125,6 +129,7 @@ class UAMS_C2S_CLI {
 	 *
 	 *     wp uams-c2s convert --all --dry-run
 	 *     wp uams-c2s convert 42 108 --verbose
+	 *     wp uams-c2s convert --all --post_status=draft
 	 *     wp uams-c2s convert --all --include-geo --demote-headings
 	 *
 	 * @param array $args       Positional arguments.
@@ -148,8 +153,24 @@ class UAMS_C2S_CLI {
 				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
 			}
 
+			$status = WP_CLI\Utils\get_flag_value( $assoc_args, 'post_status', '' );
+			$status = $status ? array_map( 'trim', explode( ',', $status ) ) : '';
+
+			if ( $status && ! UAMS_C2S_Scanner::narrow_statuses( $status ) ) {
+				WP_CLI::error(
+					sprintf(
+						'No scannable post status matched "%s". Choose from: %s.',
+						implode( ',', (array) $status ),
+						implode( ', ', UAMS_C2S_Scanner::statuses() )
+					)
+				);
+			}
+
 			$ids = UAMS_C2S_Scanner::find(
-				array( 'post_type' => WP_CLI\Utils\get_flag_value( $assoc_args, 'post_type', '' ) )
+				array(
+					'post_type' => WP_CLI\Utils\get_flag_value( $assoc_args, 'post_type', '' ),
+					'status'    => $status,
+				)
 			);
 		}
 
