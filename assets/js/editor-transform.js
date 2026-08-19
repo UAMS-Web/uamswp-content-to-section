@@ -38,7 +38,39 @@
 	}
 
 	/**
+	 * PHP's notion of truthiness, which JavaScript's does not share.
+	 *
+	 * ACF block data is form-serialized, so a true/false field saved as false
+	 * commonly arrives as the string "0". PHP reads that as false; JavaScript
+	 * reads any non-empty string as true. Written with `value ? 1 : 0` on both
+	 * sides, the editor transform hid a heading the batch converter showed.
+	 *
+	 * This must keep agreeing with `empty()` as used in
+	 * UAMS_C2S_Converter::convert_block().
+	 *
+	 * @param {*} value Value from an ACF field.
+	 * @return {boolean} What PHP would consider this value to be.
+	 */
+	function phpTruthy( value ) {
+		if ( Array.isArray( value ) ) {
+			return value.length > 0;
+		}
+
+		return ! (
+			undefined === value ||
+			null === value ||
+			false === value ||
+			'' === value ||
+			'0' === value ||
+			0 === value
+		);
+	}
+
+	/**
 	 * Build the Section block's `data` attribute from the Content block's.
+	 *
+	 * Mirrors UAMS_C2S_Converter::convert_block(); the two run over the same
+	 * blocks and must produce the same result.
 	 *
 	 * @param {Object} data Source block data.
 	 * @return {Object} Target block data.
@@ -49,10 +81,14 @@
 
 		Object.keys( config.pairs ).forEach( function ( from ) {
 			var to = config.pairs[ from ];
-			var value = typeof source[ from ] !== 'undefined' ? source[ from ] : '';
+
+			// PHP reads the value with isset(), which treats an explicit null as
+			// absent; `typeof !== 'undefined'` alone would keep it.
+			var present = typeof source[ from ] !== 'undefined' && null !== source[ from ];
+			var value   = present ? source[ from ] : '';
 
 			if ( 'section_hide_heading' === to ) {
-				value = value ? 1 : 0;
+				value = phpTruthy( value ) ? 1 : 0;
 			}
 
 			if ( 'section_background_color' === to && '' === value ) {
@@ -77,13 +113,10 @@
 			return false;
 		}
 
-		var regions = data.content_geo_region;
-
-		if ( ! data.content_geo || ! regions ) {
-			return false;
-		}
-
-		return Array.isArray( regions ) ? regions.length > 0 : true;
+		// PHP: ! empty( $geo ) && ! empty( $geo_region ). phpTruthy() covers the
+		// empty-array case the explicit Array.isArray check used to handle, and
+		// the "0" case it got wrong.
+		return phpTruthy( data.content_geo ) && phpTruthy( data.content_geo_region );
 	}
 
 	wp.hooks.addFilter(
