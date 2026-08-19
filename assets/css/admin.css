@@ -103,3 +103,15 @@
 .uams-c2s-unverified {
 	font-style: italic;
 }
+
+.uams-c2s-scopes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin: 1em 0 0.5em;
+}
+
+.uams-c2s-scopes .uams-c2s-batch {
+	margin: 0;
+}

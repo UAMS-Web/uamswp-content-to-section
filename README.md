@@ -52,7 +52,11 @@ per-post block count and a geo-targeting flag.
 - **Preview** — a dry run showing the before/after `post_content` side by side,
   plus a list of anything worth eyeballing before you commit.
 - **Convert** — converts one post.
-- **Convert all** — walks the whole site in batches of 10.
+- **Convert all**, plus one button per post status that has posts —
+  *Convert 45 drafts*, *Convert 12 published*. Each walks its own scope in
+  batches of 10 and stops there, so a draft sweep never runs on into the
+  published pages. The usual workflow: batch the drafts, walk the published
+  ones by hand with Preview.
 - **Revert** — restores the exact pre-conversion content.
 - **Repair** — appears only if 1.0.0 conversions need re-running. See
   [Repairing 1.0.0 conversions](#repairing-100-conversions).
@@ -76,6 +80,7 @@ wp uams-c2s convert --all --dry-run --verbose
 
 # Go
 wp uams-c2s convert --all
+wp uams-c2s convert --all --post_status=draft
 wp uams-c2s convert 42 108 --demote-headings
 
 # Undo

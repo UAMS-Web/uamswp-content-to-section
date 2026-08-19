@@ -193,26 +193,7 @@ class UAMS_C2S_Admin {
 				?>
 			</h2>
 
-			<?php if ( $total > 0 ) : ?>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="uams-c2s-batch">
-					<input type="hidden" name="action" value="uams_c2s_batch" />
-					<input type="hidden" name="offset" value="0" />
-					<?php wp_nonce_field( 'uams_c2s_batch' ); ?>
-					<?php
-					submit_button(
-						sprintf(
-							/* translators: %d: number of posts. */
-							__( 'Convert all %d posts', 'uams-c2s' ),
-							$total
-						),
-						'primary',
-						'submit',
-						false
-					);
-					?>
-					<span class="description"><?php esc_html_e( 'Runs in batches. Each post keeps a revision plus a one-click revert.', 'uams-c2s' ); ?></span>
-				</form>
-			<?php endif; ?>
+			<?php $this->render_batch_buttons( $total ); ?>
 
 			<?php $this->render_table( $page_ids, $preview_id ); ?>
 			<?php $this->render_pagination( $paged, $pages ); ?>
@@ -499,6 +480,68 @@ class UAMS_C2S_Admin {
 		}
 
 		return implode( ', ', $parts );
+	}
+
+	/**
+	 * Batch buttons: everything, plus one per post status that has posts.
+	 *
+	 * Converting every draft in one pass is a different risk from converting
+	 * every published page, and the useful workflow is usually to sweep the
+	 * drafts and walk the published ones by hand.
+	 *
+	 * @param int $total Posts awaiting conversion.
+	 */
+	protected function render_batch_buttons( $total ) {
+		if ( $total < 1 ) {
+			return;
+		}
+
+		$counts = UAMS_C2S_Scanner::status_counts();
+
+		$scopes = array(
+			array(
+				'status' => '',
+				'label'  => sprintf(
+					/* translators: %d: number of posts. */
+					__( 'Convert all %d posts', 'uams-c2s' ),
+					$total
+				),
+			),
+		);
+
+		// A single status covering everything would just repeat the all button.
+		if ( count( $counts ) > 1 ) {
+			foreach ( $counts as $status => $count ) {
+				$object = get_post_status_object( $status );
+
+				$scopes[] = array(
+					'status' => $status,
+					'label'  => sprintf(
+						/* translators: 1: number of posts, 2: post status name. */
+						__( 'Convert %1$d %2$s', 'uams-c2s' ),
+						$count,
+						strtolower( $object ? $object->label : $status )
+					),
+				);
+			}
+		}
+
+		?>
+		<div class="uams-c2s-scopes">
+			<?php foreach ( $scopes as $scope ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="uams-c2s-batch">
+					<input type="hidden" name="action" value="uams_c2s_batch" />
+					<input type="hidden" name="scope" value="<?php echo esc_attr( $scope['status'] ); ?>" />
+					<?php wp_nonce_field( 'uams_c2s_batch' ); ?>
+					<?php submit_button( $scope['label'], 'secondary', 'submit', false ); ?>
+				</form>
+			<?php endforeach; ?>
+		</div>
+
+		<p class="description">
+			<?php esc_html_e( 'Runs in batches of 10. Each post keeps a revision plus a one-click revert. Preview a post first if you want to see what it will become.', 'uams-c2s' ); ?>
+		</p>
+		<?php
 	}
 
 	/**
@@ -904,10 +947,12 @@ class UAMS_C2S_Admin {
 			set_transient( 'uams_c2s_repair_skipped', array_values( array_unique( $skipped ) ), HOUR_IN_SECONDS );
 			$this->render_batch_progress(
 				count( $remaining ),
-				'uams_c2s_repair_batch',
-				__( 'Repairing…', 'uams-c2s' ),
-				/* translators: %d: number of posts left. */
-				_n( '%d post left to repair…', '%d posts left to repair…', count( $remaining ), 'uams-c2s' )
+				array(
+					'action'   => 'uams_c2s_repair_batch',
+					'title'    => __( 'Repairing…', 'uams-c2s' ),
+					/* translators: %d: number of posts left. */
+					'progress' => _n( '%d post left to repair…', '%d posts left to repair…', count( $remaining ), 'uams-c2s' ),
+				)
 			);
 		}
 
@@ -944,6 +989,14 @@ class UAMS_C2S_Admin {
 		$options   = $this->options();
 		$converter = new UAMS_C2S_Converter( $options );
 
+		// Narrowing happens in the scanner, which intersects against its own
+		// allow-list, so a scope arriving here can only shrink the run.
+		$scope = isset( $_POST['scope'] ) ? sanitize_key( wp_unslash( $_POST['scope'] ) ) : '';
+
+		if ( $scope && ! UAMS_C2S_Scanner::narrow_statuses( $scope ) ) {
+			$this->redirect( 'error' );
+		}
+
 		// Posts drop out of the scan as they convert, so always take the head of
 		// the list; geo-skipped posts are excluded to avoid an endless loop.
 		$skipped = get_transient( 'uams_c2s_batch_skipped' );
@@ -951,6 +1004,7 @@ class UAMS_C2S_Admin {
 
 		$ids = UAMS_C2S_Scanner::find(
 			array(
+				'status'  => $scope,
 				'limit'   => self::BATCH_SIZE,
 				'exclude' => $skipped,
 			)
@@ -969,11 +1023,21 @@ class UAMS_C2S_Admin {
 			}
 		}
 
-		$remaining = UAMS_C2S_Scanner::find( array( 'exclude' => $skipped ) );
+		// Scoped, so a draft-only run finishes when the drafts are done rather
+		// than chaining on into the published posts it was told to leave alone.
+		$remaining = UAMS_C2S_Scanner::find(
+			array(
+				'status'  => $scope,
+				'exclude' => $skipped,
+			)
+		);
 
 		if ( $remaining ) {
 			set_transient( 'uams_c2s_batch_skipped', array_values( array_unique( $skipped ) ), HOUR_IN_SECONDS );
-			$this->render_batch_progress( count( $remaining ) );
+			$this->render_batch_progress(
+				count( $remaining ),
+				array( 'fields' => array( 'scope' => $scope ) )
+			);
 		}
 
 		delete_transient( 'uams_c2s_batch_skipped' );
@@ -983,32 +1047,56 @@ class UAMS_C2S_Admin {
 	/**
 	 * Self-submitting interstitial that runs the next batch.
 	 *
-	 * @param int    $remaining Posts still to process.
-	 * @param string $action    admin-post action to chain to.
-	 * @param string $title     Page title.
-	 * @param string $progress  Already-pluralised sprintf pattern taking the count.
+	 * @param int   $remaining Posts still to process.
+	 * @param array $args {
+	 *     Optional.
+	 *
+	 *     @type string             $action   admin-post action to chain to.
+	 *     @type string             $title    Page title.
+	 *     @type string             $progress Pluralised sprintf pattern taking the count.
+	 *     @type array<string,string> $fields Hidden fields to carry into the next request.
+	 * }
 	 */
-	protected function render_batch_progress( $remaining, $action = 'uams_c2s_batch', $title = '', $progress = '' ) {
-		$url      = admin_url( 'admin-post.php' );
-		$title    = $title ? $title : __( 'Converting…', 'uams-c2s' );
-		$progress = $progress
-			? $progress
+	protected function render_batch_progress( $remaining, array $args = array() ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'action'   => 'uams_c2s_batch',
+				'title'    => __( 'Converting…', 'uams-c2s' ),
+				'progress' => '',
+				'fields'   => array(),
+			)
+		);
+
+		$progress = $args['progress']
+			? $args['progress']
 			/* translators: %d: number of posts left. */
 			: _n( '%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s' );
 
 		nocache_headers();
 
 		echo '<!doctype html><html><head><meta charset="utf-8">';
-		echo '<title>' . esc_html( $title ) . '</title>';
+		echo '<title>' . esc_html( $args['title'] ) . '</title>';
 		echo '</head><body style="font:14px -apple-system,system-ui,sans-serif;padding:3rem;text-align:center">';
 
 		printf( '<p>%s</p>', esc_html( sprintf( $progress, $remaining ) ) );
 
+		$hidden = '';
+
+		foreach ( $args['fields'] as $name => $value ) {
+			$hidden .= sprintf(
+				'<input type="hidden" name="%1$s" value="%2$s" />',
+				esc_attr( $name ),
+				esc_attr( $value )
+			);
+		}
+
 		printf(
-			'<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="%2$s" />%3$s<button type="submit">%4$s</button></form>',
-			esc_url( $url ),
-			esc_attr( $action ),
-			wp_nonce_field( $action, '_wpnonce', true, false ),
+			'<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="%2$s" />%3$s%4$s<button type="submit">%5$s</button></form>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_attr( $args['action'] ),
+			$hidden, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_attr above.
+			wp_nonce_field( $args['action'], '_wpnonce', true, false ),
 			esc_html__( 'Continue', 'uams-c2s' )
 		);
 

@@ -30,6 +30,50 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
+	 * Narrow the scannable statuses to a requested subset.
+	 *
+	 * Intersecting rather than replacing means a status arriving from a form
+	 * post can only ever shrink the scan, never widen it past statuses().
+	 *
+	 * @param string|string[] $status Requested status or statuses. Empty for all.
+	 * @return string[] Empty when nothing valid was requested.
+	 */
+	public static function narrow_statuses( $status ) {
+		$statuses = self::statuses();
+
+		if ( empty( $status ) ) {
+			return $statuses;
+		}
+
+		$requested = array_map( 'sanitize_key', (array) $status );
+
+		return array_values( array_intersect( $statuses, $requested ) );
+	}
+
+	/**
+	 * How many posts holding a Content block sit in each post status.
+	 *
+	 * Drives the per-status batch buttons: converting every draft in one go is
+	 * a different risk from converting every published page, so the screen has
+	 * to be able to offer them separately.
+	 *
+	 * @return array<string,int> Status slug => count, statuses with none omitted.
+	 */
+	public static function status_counts() {
+		$counts = array();
+
+		foreach ( self::statuses() as $status ) {
+			$found = count( self::find( array( 'status' => $status ) ) );
+
+			if ( $found > 0 ) {
+				$counts[ $status ] = $found;
+			}
+		}
+
+		return $counts;
+	}
+
+	/**
 	 * IDs of posts containing at least one Content block.
 	 *
 	 * @param array<string,mixed> $args {
@@ -49,13 +93,19 @@ class UAMS_C2S_Scanner {
 			$args,
 			array(
 				'post_type' => '',
+				'status'    => '',
 				'limit'     => 0,
 				'offset'    => 0,
 				'exclude'   => array(),
 			)
 		);
 
-		$statuses     = self::statuses();
+		$statuses = self::narrow_statuses( $args['status'] );
+
+		if ( ! $statuses ) {
+			return array();
+		}
+
 		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 		$needle = '%' . $wpdb->esc_like( '<!-- wp:' . UAMS_C2S_Converter::SOURCE_BLOCK ) . '%';

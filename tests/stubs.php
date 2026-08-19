@@ -213,6 +213,10 @@ function wp_parse_args( $args, $defaults ) {
 	return array_merge( $defaults, (array) $args );
 }
 
+function sanitize_key( $key ) {
+	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+}
+
 function uams_c2s_default_args() {
 	return array(
 		'include_geo'     => false,
@@ -223,6 +227,7 @@ function uams_c2s_default_args() {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-converter.php';
+require_once dirname( __DIR__ ) . '/includes/class-scanner.php';
 
 /**
  * Reaches the converter's protected restore path.
