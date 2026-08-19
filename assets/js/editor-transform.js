@@ -17,6 +17,13 @@
 	var SOURCE = config.sourceBlock;
 	var TARGET = config.targetBlock;
 
+	// Resolved on the PHP side through the uams_c2s_wysiwyg_field filter, so a
+	// site that points the converter at a different body field gets the same
+	// field here. The fallback matters because browsers cache this file: served
+	// against a build that does not localise the key yet, reading it blind would
+	// hand bodyToBlocks() undefined and quietly produce an empty Section.
+	var BODY_FIELD = config.wysiwygField || 'content_content';
+
 	/**
 	 * Convert the WYSIWYG value into an array of blocks.
 	 *
@@ -143,7 +150,7 @@
 						);
 					}
 
-					var inner = bodyToBlocks( data[ 'content_content' ] );
+					var inner = bodyToBlocks( data[ BODY_FIELD ] );
 
 					return wp.blocks.createBlock(
 						TARGET,

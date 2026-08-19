@@ -92,10 +92,11 @@ function uams_c2s_enqueue_editor_assets() {
 		// and `i18n` did not, and shipped an acf_get_fields() call plus their
 		// payload on every block-editor page load to be ignored.
 		array(
-			'sourceBlock' => UAMS_C2S_Converter::SOURCE_BLOCK,
-			'targetBlock' => UAMS_C2S_Converter::TARGET_BLOCK,
-			'targetKeys'  => UAMS_C2S_Field_Map::target_keys(),
-			'pairs'       => UAMS_C2S_Field_Map::pairs(),
+			'sourceBlock'  => UAMS_C2S_Converter::SOURCE_BLOCK,
+			'targetBlock'  => UAMS_C2S_Converter::TARGET_BLOCK,
+			'targetKeys'   => UAMS_C2S_Field_Map::target_keys(),
+			'pairs'        => UAMS_C2S_Field_Map::pairs(),
+			'wysiwygField' => UAMS_C2S_Field_Map::wysiwyg_field(),
 		)
 	);
 }
