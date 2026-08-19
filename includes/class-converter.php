@@ -127,6 +127,15 @@ class UAMS_C2S_Converter {
 		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
 		$data  = self::block_data( $attrs );
 
+		// Every Content block on every target site nests its fields under `data`,
+		// which is why block_data() no longer handles anything else. If that ever
+		// stops being true, say so: the block would otherwise convert into a
+		// Section with no heading and no background colour, and nothing on the
+		// screen would explain where they went.
+		if ( ! isset( $attrs['data'] ) ) {
+			$stats['notices'][] = __( 'A Content block did not store its fields under "data". Its heading and background colour could not be read, so the Section was created with the defaults. Check that block by hand.', 'uams-c2s' );
+		}
+
 		$geo        = isset( $data['content_geo'] ) ? $data['content_geo'] : '';
 		$geo_region = isset( $data['content_geo_region'] ) ? $data['content_geo_region'] : array();
 
@@ -242,30 +251,26 @@ class UAMS_C2S_Converter {
 	}
 
 	/**
-	 * Read an ACF block's field values, tolerating the legacy flat format.
+	 * Read an ACF block's field values.
 	 *
 	 * Public and static so the scanner reads a Content block the same way the
-	 * converter does. They disagreed: the scanner looked only under `data`, so a
-	 * flat-format block with region rules showed an em-dash in the Geo-targeted
-	 * column and was then skipped by the conversion that column exists to
-	 * predict.
+	 * converter does. They disagreed once: the scanner looked only under `data`
+	 * while this also handled a legacy ACF layout that stored field values at
+	 * the top level, so a flat-format block with region rules showed an
+	 * em-dash in the Geo-targeted column and was then skipped by the conversion
+	 * that column exists to predict.
 	 *
-	 * Measured 0 flat-format blocks across 91 posts on the main site
-	 * (2026-08-19), so the tolerance below is unexercised there. It stays until
-	 * every target site says the same -- a wrong answer here silently drops a
-	 * heading and a background colour.
+	 * That tolerance is gone. All three target sites were measured on
+	 * 2026-08-19: 91 Content blocks remained across them, every one nesting its
+	 * fields under `data`, so nothing left to convert can exercise it. Anything
+	 * shaped otherwise now reads as empty -- and convert_block() reports it
+	 * rather than quietly writing a Section with no heading.
 	 *
 	 * @param array $attrs Block attributes.
 	 * @return array<string,mixed>
 	 */
 	public static function block_data( array $attrs ) {
-		if ( isset( $attrs['data'] ) && is_array( $attrs['data'] ) ) {
-			return $attrs['data'];
-		}
-
-		$reserved = array( 'id', 'name', 'align', 'mode', 'anchor', 'className', 'data' );
-
-		return array_diff_key( $attrs, array_flip( $reserved ) );
+		return ( isset( $attrs['data'] ) && is_array( $attrs['data'] ) ) ? $attrs['data'] : array();
 	}
 
 	/* ---------------------------------------------------------------------
