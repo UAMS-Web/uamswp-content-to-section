@@ -220,4 +220,71 @@ uams_c2s_test_is( 'clean post: no sample', $plan['sample'], '' );
 
 uams_c2s_test_is( 'damage_sample() on clean markup is empty', UAMS_C2S_Converter::damage_sample( $converted ), '' );
 
+/* -------------------------------------------------------------------------
+ * Damage the content scanner cannot see
+ *
+ * DAMAGE_PATTERN only recognises escapes whose stripped form is unmistakable.
+ * A lost backslash-n leaves a bare "n" that reads as ordinary text, so a post
+ * an affected version converted can look perfectly clean and still be wrong.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- invisible damage\n";
+
+// An attribute whose only escape is a newline: nothing survives to detect.
+$newline_attrs   = array( 'name' => 'acf/uams-cta-bar', 'data' => array( 'address' => "1125 North College Avenue\r\nFayetteville, AR 72703" ) );
+$newline_block   = '<!-- wp:acf/uams-cta-bar ' . uams_c2s_test_serialize_attributes( $newline_attrs ) . ' /-->';
+$newline_mangled = wp_unslash( $newline_block );
+
+uams_c2s_test_is( 'newline-only damage really is invisible', UAMS_C2S_Converter::looks_damaged( $newline_mangled ), false );
+uams_c2s_test_is( 'but the content really did change', $newline_mangled === $newline_block, false );
+
+uams_c2s_test_is( 'v1.0.0 is a known unslashed version', UAMS_C2S_Converter::wrote_unslashed( '1.0.0' ), true );
+uams_c2s_test_is( 'v1.0.1 is not', UAMS_C2S_Converter::wrote_unslashed( '1.0.1' ), false );
+uams_c2s_test_is( 'no version is not', UAMS_C2S_Converter::wrote_unslashed( '' ), false );
+
+// Clean-looking, but the record says an affected version wrote it.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 10, 'post_content' => $newline_mangled ) );
+uams_c2s_test_post( array( 'ID' => 100, 'post_type' => 'revision', 'post_parent' => 10, 'post_content' => $source, 'post_date_gmt' => '2026-08-19 10:00:00' ) );
+add_post_meta( 10, UAMS_C2S_Converter::BACKUP_META, $source );
+update_post_meta( 10, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => strtotime( '2026-08-19 11:00:00 +0000' ), 'version' => '1.0.0' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$plan      = $converter->repair_plan( 10 );
+
+uams_c2s_test_is( 'invisible damage: not flagged by content', $plan['damaged'], false );
+uams_c2s_test_is( 'invisible damage: flagged by its record', $plan['at_risk'], true );
+uams_c2s_test_is( 'invisible damage: still has a restore source', $plan['label'], 'revision #100 (2026-08-19 10:00:00 GMT)' );
+
+// The backup is refused on provenance even though it looks clean.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 11, 'post_content' => $newline_mangled ) );
+add_post_meta( 11, UAMS_C2S_Converter::BACKUP_META, $source );
+update_post_meta( 11, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.0' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$restore   = $converter->source( 11 );
+
+uams_c2s_test_is( 'v1.0.0 backup refused on provenance', $restore->get_error_code(), 'uams_c2s_damaged_backup' );
+
+// A v1.0.1 backup that looks clean is trusted.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 12, 'post_content' => $converted ) );
+add_post_meta( 12, UAMS_C2S_Converter::BACKUP_META, wp_slash( $source ) );
+update_post_meta( 12, UAMS_C2S_Converter::CONVERTED_META, array( 'time' => 1, 'version' => '1.0.1' ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$restore   = $converter->source( 12 );
+
+uams_c2s_test_is( 'v1.0.1 backup is trusted', $restore['source'], 'backup' );
+
+// repair_post() declines a clean post unless forced.
+uams_c2s_test_reset();
+uams_c2s_test_post( array( 'ID' => 13, 'post_content' => $newline_mangled ) );
+
+$converter = new UAMS_C2S_Test_Converter();
+$result    = $converter->repair_post( 13 );
+
+uams_c2s_test_is( 'unforced repair of a clean-looking post declines', $result['reason'], 'clean' );
+
 uams_c2s_test_done();

@@ -229,7 +229,16 @@ class UAMS_C2S_Admin {
 	 * @param array<string,mixed> $options Conversion options.
 	 */
 	protected function render_damaged( array $options ) {
-		$ids = UAMS_C2S_Scanner::find_damaged();
+		// Visible damage and recorded provenance are different populations, and
+		// neither contains the other: a v1.0.0 conversion can look clean, and
+		// damage can arrive from something that is not this plugin at all.
+		$ids = array_values(
+			array_unique(
+				array_merge( UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk() )
+			)
+		);
+
+		sort( $ids );
 
 		if ( ! $ids ) {
 			return;
@@ -243,36 +252,43 @@ class UAMS_C2S_Admin {
 			$plans[ $id ] = $converter->repair_plan( $id );
 		}
 
-		$ours = 0;
+		$ours    = 0;
+		$visible = 0;
 
 		foreach ( $plans as $plan ) {
 			if ( ! empty( $plan['converted'] ) ) {
 				++$ours;
 			}
+
+			if ( $plan['damaged'] ) {
+				++$visible;
+			}
 		}
 
 		?>
-		<h2><?php esc_html_e( 'Damaged block markup', 'uams-c2s' ); ?></h2>
+		<h2><?php esc_html_e( 'Needs re-converting', 'uams-c2s' ); ?></h2>
 
 		<div class="notice notice-error inline">
 			<p>
 				<?php
 				printf(
-					/* translators: %d: number of posts. */
-					esc_html( _n( 'The block attribute JSON on %d post has lost a level of backslashes: escapes that should read backslash-u003c are stored as bare "u003c" text, so the affected block renders its attributes as literal text.', 'The block attribute JSON on %d posts has lost a level of backslashes: escapes that should read backslash-u003c are stored as bare "u003c" text, so the affected blocks render their attributes as literal text.', count( $plans ), 'uams-c2s' ) ),
-					count( $plans )
+					/* translators: 1: total posts, 2: posts with visible damage. */
+					esc_html__( '%1$d post(s) were written through the 1.0.0 slashing bug, or carry its signature. %2$d of them show it in their markup: block attribute escapes that should read backslash-u003c are stored as bare "u003c" text, so those blocks render their attributes as literal text.', 'uams-c2s' ),
+					count( $plans ),
+					absint( $visible )
 				);
 				?>
 			</p>
 			<p>
+				<?php if ( count( $plans ) > $visible ) : ?>
+					<strong><?php esc_html_e( 'A clean-looking post in this list is not proof it is undamaged.', 'uams-c2s' ); ?></strong>
+					<?php esc_html_e( 'The detector can only recognise escapes whose stripped form is unmistakable. A lost backslash-n or backslash-t inside an attribute value leaves a bare letter that reads as ordinary text, so posts converted by an affected version are listed on the strength of their conversion record instead.', 'uams-c2s' ); ?>
+				<?php endif; ?>
+			</p>
+			<p>
 				<?php
 				if ( $ours ) {
-					printf(
-						/* translators: 1: posts this plugin converted, 2: total damaged posts. */
-						esc_html__( '%1$d of the %2$d carry a conversion record from this plugin, so plugin 1.0.0 caused those: it saved converted content without slashing it. Repair restores the pre-conversion content from the revision saved before the conversion and converts it again with the current code. The 1.0.0 backup is not used, because add_post_meta() unslashed it the same way.', 'uams-c2s' ),
-						absint( $ours ),
-						count( $plans )
-					);
+					esc_html_e( 'Repair restores the pre-conversion content from the revision saved before the conversion and converts it again with the current code. The old backup is not used, because add_post_meta() unslashed it the same way.', 'uams-c2s' );
 				} else {
 					esc_html_e( 'None of them carry a conversion record from this plugin, so it did not cause this. Any code that writes post_content without wp_slash() leaves the same signature — an import, a REST or API update, or a search-and-replace. Check the evidence column before acting.', 'uams-c2s' );
 				}
@@ -286,7 +302,7 @@ class UAMS_C2S_Admin {
 					<th scope="col"><?php esc_html_e( 'Post', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Type', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Converted by this plugin', 'uams-c2s' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'What matched', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Visible damage', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Restores from', 'uams-c2s' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Actions', 'uams-c2s' ); ?></th>
 				</tr>
@@ -327,7 +343,13 @@ class UAMS_C2S_Admin {
 							<em><?php esc_html_e( 'no record', 'uams-c2s' ); ?></em>
 						<?php endif; ?>
 					</td>
-					<td><code class="uams-c2s-sample"><?php echo esc_html( $plan['sample'] ); ?></code></td>
+					<td>
+						<?php if ( $plan['damaged'] ) : ?>
+							<code class="uams-c2s-sample"><?php echo esc_html( $plan['sample'] ); ?></code>
+						<?php else : ?>
+							<em><?php esc_html_e( 'none visible — listed on its conversion record', 'uams-c2s' ); ?></em>
+						<?php endif; ?>
+					</td>
 					<td>
 						<?php if ( $plan['error'] ) : ?>
 							<span class="uams-c2s-flag"><?php echo esc_html( $plan['error'] ); ?></span>
@@ -375,11 +397,11 @@ class UAMS_C2S_Admin {
 				$status['conversions'],
 				$status['last']
 					? sprintf(
-						/* translators: 1: block count, 2: date, 3: plugin versions. */
-						__( '%1$d block(s) in total. Most recent %2$s, written by v%3$s.', 'uams-c2s' ),
+						/* translators: 1: block count, 2: per-version breakdown, 3: date. */
+						__( '%1$d block(s) in total, by %2$s. Most recent %3$s.', 'uams-c2s' ),
 						$status['blocks'],
-						date_i18n( 'Y-m-d H:i', $status['last'] ),
-						implode( ', ', $status['versions'] )
+						$this->version_breakdown( $status['versions'] ),
+						date_i18n( 'Y-m-d H:i', $status['last'] )
 					)
 					: __( 'This plugin has no record of converting anything on this site.', 'uams-c2s' ),
 			),
@@ -391,7 +413,12 @@ class UAMS_C2S_Admin {
 			array(
 				__( 'Posts with damaged block markup', 'uams-c2s' ),
 				$status['damaged'],
-				__( 'Block attribute escapes stored as literal text. Listed below when any are found.', 'uams-c2s' ),
+				__( 'Block attribute escapes stored as literal text. This is what can be seen; it is a floor, not a total.', 'uams-c2s' ),
+			),
+			array(
+				__( 'Posts converted by an unslashed version', 'uams-c2s' ),
+				$status['at_risk'],
+				__( 'Written through the 1.0.0 bug whether or not damage is visible. Re-convert these from their pre-conversion revision to be certain.', 'uams-c2s' ),
 			),
 		);
 
@@ -418,6 +445,29 @@ class UAMS_C2S_Admin {
 			</div>
 		<?php endif; ?>
 		<?php
+	}
+
+	/**
+	 * "5 by v1.0.0, 3 by v1.0.1", affected versions marked.
+	 *
+	 * @param array<string,int> $versions Version => conversion count.
+	 * @return string
+	 */
+	protected function version_breakdown( array $versions ) {
+		$parts = array();
+
+		foreach ( $versions as $version => $count ) {
+			$parts[] = sprintf(
+				/* translators: 1: conversion count, 2: plugin version. */
+				UAMS_C2S_Converter::wrote_unslashed( $version )
+					? __( '%1$d by v%2$s (affected)', 'uams-c2s' )
+					: __( '%1$d by v%2$s', 'uams-c2s' ),
+				$count,
+				$version
+			);
+		}
+
+		return implode( ', ', $parts );
 	}
 
 	/**
@@ -769,7 +819,10 @@ class UAMS_C2S_Admin {
 		$this->authorize_post( $post_id );
 
 		$converter = new UAMS_C2S_Converter( $this->options() );
-		$result    = $converter->repair_post( $post_id );
+
+		// Posts listed on their conversion record alone show no visible damage,
+		// so the repair has to run without waiting to see any.
+		$result = $converter->repair_post( $post_id, true );
 
 		if ( is_wp_error( $result ) ) {
 			$this->redirect( 'error' );
