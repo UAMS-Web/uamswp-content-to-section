@@ -125,7 +125,7 @@ class UAMS_C2S_Converter {
 	 */
 	public function convert_block( array $block, array &$stats ) {
 		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
-		$data  = $this->block_data( $attrs );
+		$data  = self::block_data( $attrs );
 
 		$geo        = isset( $data['content_geo'] ) ? $data['content_geo'] : '';
 		$geo_region = isset( $data['content_geo_region'] ) ? $data['content_geo_region'] : array();
@@ -244,10 +244,21 @@ class UAMS_C2S_Converter {
 	/**
 	 * Read an ACF block's field values, tolerating the legacy flat format.
 	 *
+	 * Public and static so the scanner reads a Content block the same way the
+	 * converter does. They disagreed: the scanner looked only under `data`, so a
+	 * flat-format block with region rules showed an em-dash in the Geo-targeted
+	 * column and was then skipped by the conversion that column exists to
+	 * predict.
+	 *
+	 * Measured 0 flat-format blocks across 91 posts on the main site
+	 * (2026-08-19), so the tolerance below is unexercised there. It stays until
+	 * every target site says the same -- a wrong answer here silently drops a
+	 * heading and a background colour.
+	 *
 	 * @param array $attrs Block attributes.
 	 * @return array<string,mixed>
 	 */
-	protected function block_data( array $attrs ) {
+	public static function block_data( array $attrs ) {
 		if ( isset( $attrs['data'] ) && is_array( $attrs['data'] ) ) {
 			return $attrs['data'];
 		}

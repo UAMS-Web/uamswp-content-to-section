@@ -417,7 +417,7 @@ class UAMS_C2S_Admin {
 				$status['last']
 					? sprintf(
 						/* translators: 1: block count, 2: per-version breakdown, 3: date. */
-						__( '%1$d block(s) in total, by %2$s. Most recent %3$s.', 'uams-c2s' ),
+						__( '%1$d block(s) in total. %2$s. Most recent %3$s.', 'uams-c2s' ),
 						$status['blocks'],
 						$this->version_breakdown( $status['versions'] ),
 						date_i18n( 'Y-m-d H:i', $status['last'] )
@@ -452,8 +452,8 @@ class UAMS_C2S_Admin {
 				__( 'Content blocks in the legacy flat format', 'uams-c2s' ),
 				$flat,
 				$flat > 0
-					? __( 'These store their fields outside `data`. The converter reads them correctly, but the Geo-targeted column below does not — treat that column as unreliable until they are converted.', 'uams-c2s' )
-					: __( 'None. Every Content block nests its fields under `data`, so the converter\'s tolerance for the older layout is unused on this site.', 'uams-c2s' ),
+					? __( 'These store their fields outside `data`. Both the converter and the list below read them correctly; the count is here so the tolerance that handles them is not removed while a site still needs it.', 'uams-c2s' )
+					: __( 'None. Every Content block nests its fields under `data`, so the converter\'s tolerance for the older layout is unused on this site. Check the other sites before removing it.', 'uams-c2s' ),
 			);
 		}
 

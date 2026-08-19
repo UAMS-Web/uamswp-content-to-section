@@ -370,6 +370,28 @@ uams_c2s_test_is( 'a bogus status cannot widen the run', UAMS_C2S_Scanner::narro
 uams_c2s_test_is( 'a mixed request keeps only the valid part', UAMS_C2S_Scanner::narrow_statuses( array( 'draft', 'trash' ) ), array( 'draft' ) );
 
 /* -------------------------------------------------------------------------
+ * F9 — one reader for a Content block's fields
+ *
+ * The scanner used to look only under `data` while the converter also handled
+ * the legacy flat layout, so the Geo-targeted column could contradict the
+ * conversion it exists to predict.
+ * ---------------------------------------------------------------------- */
+
+echo "\n-- block field reading\n";
+
+$nested = array( 'name' => 'acf/uams-content', 'data' => array( 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) ) );
+$flat   = array( 'name' => 'acf/uams-content', 'align' => 'full', 'mode' => 'preview', 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) );
+
+uams_c2s_test_is( 'nested attributes are read from data', UAMS_C2S_Converter::block_data( $nested ), $nested['data'] );
+uams_c2s_test_is(
+	'flat attributes are read with the reserved keys stripped',
+	UAMS_C2S_Converter::block_data( $flat ),
+	array( 'content_geo' => 'include', 'content_geo_region' => array( 'ar' ) )
+);
+uams_c2s_test_is( 'both layouts agree on the geo fields', UAMS_C2S_Converter::block_data( $nested ), UAMS_C2S_Converter::block_data( $flat ) );
+uams_c2s_test_is( 'attributes with neither shape read as empty', UAMS_C2S_Converter::block_data( array( 'name' => 'acf/uams-content', 'align' => 'full' ) ), array() );
+
+/* -------------------------------------------------------------------------
  * F6 — a recorded source_revision is an address, not a warrant
  *
  * The recorded-id branch used to return whatever the id pointed at after

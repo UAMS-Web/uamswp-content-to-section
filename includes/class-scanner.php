@@ -394,9 +394,12 @@ class UAMS_C2S_Scanner {
 			if ( isset( $block['blockName'] ) && UAMS_C2S_Converter::SOURCE_BLOCK === $block['blockName'] ) {
 				++$summary['blocks'];
 
-				$data = isset( $block['attrs']['data'] ) && is_array( $block['attrs']['data'] )
-					? $block['attrs']['data']
-					: array();
+				// Read through the converter so this column predicts what the
+				// conversion will actually do. Reading only `data` here meant a
+				// flat-format block with region rules reported no geo targeting
+				// and was then skipped.
+				$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+				$data  = UAMS_C2S_Converter::block_data( $attrs );
 
 				if ( ! empty( $data['content_geo'] ) && ! empty( $data['content_geo_region'] ) ) {
 					++$summary['geo'];
