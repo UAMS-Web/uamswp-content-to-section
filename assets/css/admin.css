@@ -81,3 +81,15 @@
 	line-height: 1.5;
 	word-break: break-all;
 }
+
+.uams-c2s-status th {
+	width: 22rem;
+	text-align: left;
+}
+
+.uams-c2s-status .uams-c2s-count {
+	width: 5rem;
+	font-size: 15px;
+	font-weight: 600;
+	text-align: right;
+}

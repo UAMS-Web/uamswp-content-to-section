@@ -129,6 +129,7 @@ class UAMS_C2S_Admin {
 
 			<?php $this->render_notice( $notice ); ?>
 			<?php $this->render_environment_warnings(); ?>
+			<?php $this->render_status(); ?>
 
 			<p class="description">
 				<?php
@@ -345,6 +346,77 @@ class UAMS_C2S_Admin {
 			<?php endforeach; ?>
 			</tbody>
 		</table>
+		<?php
+	}
+
+	/**
+	 * Whole-site counts, and what they say about how the site got this way.
+	 *
+	 * The conversion list shrinks as posts convert, so "it said 60 yesterday and
+	 * says 0 today" is ambiguous on its own. These counts disambiguate it
+	 * without needing shell access.
+	 */
+	protected function render_status() {
+		$status = UAMS_C2S_Scanner::status();
+
+		$rows = array(
+			array(
+				__( 'Posts still holding a Content block', 'uams-c2s' ),
+				$status['content'],
+				__( 'What the list below counts.', 'uams-c2s' ),
+			),
+			array(
+				__( 'Posts holding a Section block', 'uams-c2s' ),
+				$status['section'],
+				__( 'Includes Section blocks that were authored by hand, not only converted ones.', 'uams-c2s' ),
+			),
+			array(
+				__( 'Conversions recorded by this plugin', 'uams-c2s' ),
+				$status['conversions'],
+				$status['last']
+					? sprintf(
+						/* translators: 1: block count, 2: date, 3: plugin versions. */
+						__( '%1$d block(s) in total. Most recent %2$s, written by v%3$s.', 'uams-c2s' ),
+						$status['blocks'],
+						date_i18n( 'Y-m-d H:i', $status['last'] ),
+						implode( ', ', $status['versions'] )
+					)
+					: __( 'This plugin has no record of converting anything on this site.', 'uams-c2s' ),
+			),
+			array(
+				__( 'Pre-conversion backups stored', 'uams-c2s' ),
+				$status['backups'],
+				__( 'One per converted post, until it is reverted.', 'uams-c2s' ),
+			),
+			array(
+				__( 'Posts with damaged block markup', 'uams-c2s' ),
+				$status['damaged'],
+				__( 'Block attribute escapes stored as literal text. Listed below when any are found.', 'uams-c2s' ),
+			),
+		);
+
+		?>
+		<h2><?php esc_html_e( 'Site status', 'uams-c2s' ); ?></h2>
+
+		<table class="widefat striped uams-c2s-status">
+			<tbody>
+			<?php foreach ( $rows as $row ) : ?>
+				<tr>
+					<th scope="row"><?php echo esc_html( $row[0] ); ?></th>
+					<td class="uams-c2s-count"><?php echo absint( $row[1] ); ?></td>
+					<td class="description"><?php echo esc_html( $row[2] ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<?php if ( 0 === $status['content'] && 0 === $status['conversions'] && $status['section'] > 0 ) : ?>
+			<div class="notice notice-warning inline">
+				<p>
+					<?php esc_html_e( 'There are Section blocks on this site but no Content blocks and no conversion record. If you expected posts to still be waiting to convert, this plugin is not what changed them — check whether you are looking at a different database than before, or whether something else rewrote those posts.', 'uams-c2s' ); ?>
+				</p>
+			</div>
+		<?php endif; ?>
 		<?php
 	}
 

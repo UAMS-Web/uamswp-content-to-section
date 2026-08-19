@@ -100,6 +100,88 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
+	 * Count posts whose content contains a literal string.
+	 *
+	 * @param string $needle Substring to look for.
+	 * @return int
+	 */
+	public static function count_containing( $needle ) {
+		global $wpdb;
+
+		$statuses     = self::statuses();
+		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+		$params = array_merge(
+			array( '%' . $wpdb->esc_like( $needle ) . '%' ),
+			$statuses
+		);
+
+		$sql = "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+	}
+
+	/**
+	 * A whole-site picture of what the conversion has and has not touched.
+	 *
+	 * Exists so the question "the list said 60 and now says 0 -- what happened?"
+	 * can be answered from the Tools screen, without shell access.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function status() {
+		global $wpdb;
+
+		$records = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				UAMS_C2S_Converter::CONVERTED_META
+			)
+		);
+
+		$backups = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				UAMS_C2S_Converter::BACKUP_META
+			)
+		);
+
+		$last     = 0;
+		$blocks   = 0;
+		$versions = array();
+
+		foreach ( (array) $records as $raw ) {
+			$record = maybe_unserialize( $raw );
+
+			if ( ! is_array( $record ) ) {
+				continue;
+			}
+
+			if ( ! empty( $record['time'] ) ) {
+				$last = max( $last, (int) $record['time'] );
+			}
+
+			if ( ! empty( $record['version'] ) ) {
+				$versions[ (string) $record['version'] ] = true;
+			}
+
+			$blocks += isset( $record['converted'] ) ? (int) $record['converted'] : 0;
+		}
+
+		return array(
+			'content'     => self::count_containing( '<!-- wp:' . UAMS_C2S_Converter::SOURCE_BLOCK ),
+			'section'     => self::count_containing( '<!-- wp:' . UAMS_C2S_Converter::TARGET_BLOCK ),
+			'conversions' => count( (array) $records ),
+			'blocks'      => $blocks,
+			'backups'     => $backups,
+			'damaged'     => count( self::find_damaged() ),
+			'last'        => $last,
+			'versions'    => array_keys( $versions ),
+		);
+	}
+
+	/**
 	 * IDs of posts whose block markup lost a level of backslashes.
 	 *
 	 * Plugin 1.0.0 saved converted content without wp_slash(), so every block

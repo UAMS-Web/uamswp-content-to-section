@@ -37,7 +37,14 @@ without them.
 
 ### 1. Tools → Content → Section
 
-Lists every post, page and CPT entry still holding a Content Block, with a
+Opens with **Site status**: how many posts still hold a Content Block, how many
+hold a Section Block, how many conversions this plugin has recorded and when,
+how many backups it is keeping, and how many posts have damaged block markup.
+The list of posts to convert shrinks as they convert, so these counts are what
+tell you whether a list that has gone quiet did so because the work is done —
+or because something else changed those posts.
+
+Below it, every post, page and CPT entry still holding a Content Block, with a
 per-post block count and a geo-targeting flag.
 
 - **Preview** — a dry run showing the before/after `post_content` side by side,
@@ -148,17 +155,17 @@ usual first sighting.
 The same bug also damaged the `_uams_c2s_backup` meta, because `add_post_meta()`
 unslashes too. **Reverting a 1.0.0 conversion restores equally mangled content.**
 Repair therefore ignores the backup and restores from the WordPress revision
-saved before the conversion:
+saved before the conversion, then converts again with the fixed code.
+
+Tools → Content → Section grows a **Damaged block markup** table listing every
+affected post, with a per-post **Repair** button and the revision each one would
+come from. Posts with no surviving clean revision are listed with the reason and
+no button; those need a database backup. The same thing from the shell:
 
 ```bash
 wp uams-c2s repair --all --dry-run   # what is damaged, and where it restores from
 wp uams-c2s repair --all             # restore from revision, then convert again
 ```
-
-Tools → Content → Section grows a **Damaged block markup** table listing the same
-posts, with a per-post Repair button and the revision each one would come from.
-Posts with no surviving clean revision are listed with the reason and no button;
-those need a database backup.
 
 **A damaged post is not proof this plugin damaged it.** Any code that writes
 `post_content` without `wp_slash()` leaves the same signature — an import, a
