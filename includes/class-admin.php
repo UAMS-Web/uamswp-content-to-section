@@ -270,10 +270,14 @@ class UAMS_C2S_Admin {
 		</div>
 
 		<?php
+		// Count what will actually repair. Mismatches are refused by
+		// repair_post(), so including them here promised a number the run could
+		// not deliver -- a queue of three mismatches offered "Repair all 3" and
+		// repaired none.
 		$repairable = 0;
 
 		foreach ( $plans as $plan ) {
-			if ( ! $plan['error'] ) {
+			if ( ! $plan['error'] && 'mismatch' !== $plan['verified'] ) {
 				++$repairable;
 			}
 		}
@@ -370,10 +374,13 @@ class UAMS_C2S_Admin {
 						<?php endif; ?>
 					</td>
 					<td class="uams-c2s-actions">
-						<?php if ( ! $plan['error'] ) : ?>
-							<?php $this->action_button( 'uams_c2s_repair', $id, __( 'Repair', 'uams-c2s' ), 'button-primary' ); ?>
-						<?php else : ?>
+						<?php if ( $plan['error'] ) : ?>
 							&mdash;
+						<?php elseif ( 'mismatch' === $plan['verified'] ) : ?>
+							<?php // Refused by repair_post(); offering the button anyway, directly under the warning, is what made the two paths disagree. ?>
+							<span class="uams-c2s-unverified"><?php esc_html_e( 'needs a manual comparison', 'uams-c2s' ); ?></span>
+						<?php else : ?>
+							<?php $this->action_button( 'uams_c2s_repair', $id, __( 'Repair', 'uams-c2s' ), 'button-primary' ); ?>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -581,6 +588,9 @@ class UAMS_C2S_Admin {
 			'reverted'   => array( 'success', __( 'Post restored to its pre-conversion content.', 'uams-c2s' ) ),
 			'repaired'   => array( 'success', __( 'Post restored from its pre-conversion revision and converted again.', 'uams-c2s' ) ),
 			'norepair'   => array( 'info', __( 'That post is not damaged; nothing to repair.', 'uams-c2s' ) ),
+
+			'norepair_mismatch' => array( 'warning', __( 'Nothing was changed. The revision this post would restore from does not match the content that was actually converted, so repairing it would discard the difference. Compare the two by hand before deciding.', 'uams-c2s' ) ),
+			'norepair_empty'    => array( 'warning', __( 'The pre-conversion content was restored, but it held no Content block to convert, so the post is now listed for conversion again rather than repaired. Check it before converting.', 'uams-c2s' ) ),
 
 			'repair_batch_done' => array( 'success', __( 'Re-conversion finished. Anything still listed below could not be repaired automatically — check the reason given.', 'uams-c2s' ) ),
 			'saved'      => array( 'success', __( 'Options saved.', 'uams-c2s' ) ),
@@ -904,7 +914,21 @@ class UAMS_C2S_Admin {
 			$this->redirect( 'error' );
 		}
 
-		$this->redirect( empty( $result['repaired'] ) ? 'norepair' : 'repaired' );
+		if ( ! empty( $result['repaired'] ) ) {
+			$this->redirect( 'repaired' );
+		}
+
+		// Each refusal says something different; reporting them all as "nothing
+		// to repair" would tell an operator a mismatch was a no-op.
+		$notices = array(
+			'clean'         => 'norepair',
+			'mismatch'      => 'norepair_mismatch',
+			'not_converted' => 'norepair_empty',
+		);
+
+		$reason = isset( $result['reason'] ) ? $result['reason'] : 'clean';
+
+		$this->redirect( isset( $notices[ $reason ] ) ? $notices[ $reason ] : 'norepair' );
 	}
 
 	/**
@@ -926,14 +950,11 @@ class UAMS_C2S_Admin {
 				continue;
 			}
 
-			// A restore that does not match the backup is not the content that
-			// was converted. Leave those for a human to look at rather than
-			// rolling them back in bulk.
-			if ( 'mismatch' === $converter->repair_plan( $id )['verified'] ) {
-				$skipped[] = $id;
-				continue;
-			}
-
+			// repair_post() refuses a restore that does not match the backup, so
+			// the guard that used to sit here -- and the duplicate resolution it
+			// cost, a second full revision walk per post -- is gone. A refusal
+			// lands in the empty( $result['repaired'] ) branch below and parks
+			// exactly as it did before.
 			$result = $converter->repair_post( $id, true );
 
 			if ( is_wp_error( $result ) || empty( $result['repaired'] ) ) {

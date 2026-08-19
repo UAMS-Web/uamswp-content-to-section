@@ -200,8 +200,12 @@ stored it a slash level down, and either form counts as a match. Each row report
 the verdict:
 
 - **matches the pre-conversion backup** — proven; repair freely.
-- **does not match** — the revision is not what was converted. **Batch repair
-  skips these**; compare the two by hand before using the per-post button.
+- **does not match** — the revision is not what was converted, so repairing
+  would discard the difference. **Repair refuses these on every path** — the
+  batch run, the per-post button and `wp uams-c2s repair` alike — and the row
+  offers no button. Compare the revision against the backup by hand and decide
+  what the post should hold. There is deliberately no one-click override: an
+  override indistinguishable from the safe action is not an override.
 - **no backup survives to check it against** — the revision is the only source.
 
 Tools → Content → Section grows a **Needs re-converting** table listing every
