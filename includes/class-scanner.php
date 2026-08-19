@@ -100,6 +100,51 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
+	 * IDs of posts whose block markup lost a level of backslashes.
+	 *
+	 * Plugin 1.0.0 saved converted content without wp_slash(), so every block
+	 * attribute escape on the page came back as literal "u003c" text. The LIKE
+	 * is a cheap prefilter; the regex in the converter is the real test, since
+	 * only it can tell a stripped escape from an intact one.
+	 *
+	 * @return int[]
+	 */
+	public static function find_damaged() {
+		global $wpdb;
+
+		$statuses     = self::statuses();
+		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+		$markers = array( 'u0022', 'u0026', 'u002d', 'u003c', 'u003e' );
+		$clauses = implode( ' OR ', array_fill( 0, count( $markers ), 'post_content LIKE %s' ) );
+
+		$params = array();
+
+		foreach ( $markers as $marker ) {
+			$params[] = '%' . $wpdb->esc_like( $marker ) . '%';
+		}
+
+		$params = array_merge( $params, $statuses );
+
+		$sql = "SELECT ID FROM {$wpdb->posts} WHERE ( {$clauses} ) AND post_status IN ( {$status_slots} ) ORDER BY post_type ASC, ID ASC";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
+		$ids = $wpdb->get_col( $wpdb->prepare( $sql, $params ) );
+
+		$damaged = array();
+
+		foreach ( (array) $ids as $id ) {
+			$post = get_post( (int) $id );
+
+			if ( $post && UAMS_C2S_Converter::looks_damaged( $post->post_content ) ) {
+				$damaged[] = (int) $post->ID;
+			}
+		}
+
+		return $damaged;
+	}
+
+	/**
 	 * Summarise one post: how many blocks, and whether any are geo-targeted.
 	 *
 	 * @param int|WP_Post $post Post.

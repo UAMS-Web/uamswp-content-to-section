@@ -3,7 +3,7 @@
  * Plugin Name:       UAMS Content → Section Converter
  * Plugin URI:        https://www.uams.edu/
  * Description:       Converts legacy UAMS Content Blocks (acf/uams-content) into UAMS Section Blocks (acf/uams-section), turning the WYSIWYG field into native inner blocks. Ships a Tools screen with preview/convert/revert, an in-editor block transform, and WP-CLI commands.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Brent Passmore
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UAMS_C2S_VERSION', '1.0.0' );
+define( 'UAMS_C2S_VERSION', '1.0.1' );
 define( 'UAMS_C2S_FILE', __FILE__ );
 define( 'UAMS_C2S_DIR', plugin_dir_path( __FILE__ ) );
 define( 'UAMS_C2S_URL', plugin_dir_url( __FILE__ ) );

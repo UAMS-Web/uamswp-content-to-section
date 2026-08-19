@@ -46,6 +46,7 @@ class UAMS_C2S_Admin {
 		add_action( 'admin_post_uams_c2s_save_options', array( $this, 'handle_save_options' ) );
 		add_action( 'admin_post_uams_c2s_convert', array( $this, 'handle_convert' ) );
 		add_action( 'admin_post_uams_c2s_revert', array( $this, 'handle_revert' ) );
+		add_action( 'admin_post_uams_c2s_repair', array( $this, 'handle_repair' ) );
 		add_action( 'admin_post_uams_c2s_batch', array( $this, 'handle_batch' ) );
 	}
 
@@ -212,8 +213,94 @@ class UAMS_C2S_Admin {
 
 			<?php $this->render_table( $page_ids, $preview_id ); ?>
 			<?php $this->render_pagination( $paged, $pages ); ?>
+			<?php $this->render_damaged( $options ); ?>
 			<?php $this->render_preview( $preview_id, $options ); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Posts left mangled by plugin 1.0.0, with a per-post repair button.
+	 *
+	 * These no longer contain a Content block, so they have already dropped off
+	 * the conversion table above and need their own listing.
+	 *
+	 * @param array<string,mixed> $options Conversion options.
+	 */
+	protected function render_damaged( array $options ) {
+		$ids = UAMS_C2S_Scanner::find_damaged();
+
+		if ( ! $ids ) {
+			return;
+		}
+
+		$converter = new UAMS_C2S_Converter( $options );
+
+		?>
+		<h2><?php esc_html_e( 'Damaged conversions', 'uams-c2s' ); ?></h2>
+
+		<div class="notice notice-error inline">
+			<p>
+				<?php
+				printf(
+					/* translators: %d: number of posts. */
+					esc_html( _n( '%d post was converted by plugin 1.0.0, which saved the block markup without slashing it. Every block attribute escape on the page was flattened into literal "u003c" text.', '%d posts were converted by plugin 1.0.0, which saved the block markup without slashing it. Every block attribute escape on those pages was flattened into literal "u003c" text.', count( $ids ), 'uams-c2s' ) ),
+					count( $ids )
+				);
+				?>
+			</p>
+			<p>
+				<?php esc_html_e( 'Repair restores the pre-conversion content from the post revision saved before the conversion, then converts it again with the current code. The 1.0.0 backup is not used: it was stored through the same unslashing and is damaged in the same way.', 'uams-c2s' ); ?>
+			</p>
+		</div>
+
+		<table class="widefat striped uams-c2s-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Post', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Type', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Status', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Restores from', 'uams-c2s' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Actions', 'uams-c2s' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php foreach ( $ids as $id ) : ?>
+				<?php
+				$plan  = $converter->repair_plan( $id );
+				$title = get_the_title( $id );
+				$view  = $this->view_link( $id );
+				?>
+				<tr>
+					<td>
+						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ? $title : '(' . $id . ')' ); ?></a></strong>
+						<div class="row-actions">
+							<span>#<?php echo absint( $id ); ?></span>
+							<?php if ( $view ) : ?>
+								| <span><a href="<?php echo esc_url( $view['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $view['label'] ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'uams-c2s' ); ?></span></a></span>
+							<?php endif; ?>
+						</div>
+					</td>
+					<td><?php echo esc_html( (string) get_post_type( $id ) ); ?></td>
+					<td><?php echo esc_html( (string) get_post_status( $id ) ); ?></td>
+					<td>
+						<?php if ( $plan['error'] ) : ?>
+							<span class="uams-c2s-flag"><?php echo esc_html( $plan['error'] ); ?></span>
+						<?php else : ?>
+							<?php echo esc_html( $plan['label'] ); ?>
+						<?php endif; ?>
+					</td>
+					<td class="uams-c2s-actions">
+						<?php if ( ! $plan['error'] ) : ?>
+							<?php $this->action_button( 'uams_c2s_repair', $id, __( 'Repair', 'uams-c2s' ), 'button-primary' ); ?>
+						<?php else : ?>
+							&mdash;
+						<?php endif; ?>
+					</td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
 		<?php
 	}
 
@@ -252,6 +339,8 @@ class UAMS_C2S_Admin {
 			'converted'  => array( 'success', __( 'Post converted.', 'uams-c2s' ) ),
 			'nochange'   => array( 'info', __( 'Nothing to convert in that post.', 'uams-c2s' ) ),
 			'reverted'   => array( 'success', __( 'Post restored to its pre-conversion content.', 'uams-c2s' ) ),
+			'repaired'   => array( 'success', __( 'Post restored from its pre-conversion revision and converted again.', 'uams-c2s' ) ),
+			'norepair'   => array( 'info', __( 'That post is not damaged; nothing to repair.', 'uams-c2s' ) ),
 			'saved'      => array( 'success', __( 'Options saved.', 'uams-c2s' ) ),
 			'batch_done' => array( 'success', __( 'Batch conversion finished.', 'uams-c2s' ) ),
 			'error'      => array( 'error', __( 'The conversion failed. Check the error log.', 'uams-c2s' ) ),
@@ -552,6 +641,25 @@ class UAMS_C2S_Admin {
 		$result = ( new UAMS_C2S_Converter() )->revert_post( $post_id );
 
 		$this->redirect( is_wp_error( $result ) ? 'error' : 'reverted' );
+	}
+
+	/**
+	 * Re-run one mangled conversion.
+	 */
+	public function handle_repair() {
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+
+		$this->authorize( 'uams_c2s_repair_' . $post_id );
+		$this->authorize_post( $post_id );
+
+		$converter = new UAMS_C2S_Converter( $this->options() );
+		$result    = $converter->repair_post( $post_id );
+
+		if ( is_wp_error( $result ) ) {
+			$this->redirect( 'error' );
+		}
+
+		$this->redirect( empty( $result['repaired'] ) ? 'norepair' : 'repaired' );
 	}
 
 	/**
