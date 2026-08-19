@@ -224,6 +224,29 @@ function sanitize_key( $key ) {
 	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
 }
 
+/*
+ * Enough of the formatting API to load UAMS_C2S_HTML_To_Blocks. wpautop() and
+ * shortcode_unautop() are identity here, which is faithful only for input that
+ * is already block-level -- the paragraph-materialising behaviour the real
+ * functions provide is not what these cases exercise.
+ */
+
+function wpautop( $text, $br = true ) {
+	return $text;
+}
+
+function shortcode_unautop( $text ) {
+	return $text;
+}
+
+function esc_attr( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+
+function wp_strip_all_tags( $text, $remove_breaks = false ) {
+	return strip_tags( (string) $text );
+}
+
 function uams_c2s_default_args() {
 	return array(
 		'include_geo'     => false,
@@ -235,6 +258,7 @@ function uams_c2s_default_args() {
 
 require_once dirname( __DIR__ ) . '/includes/class-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-scanner.php';
+require_once dirname( __DIR__ ) . '/includes/class-html-to-blocks.php';
 
 /**
  * Reaches the converter's protected restore path.

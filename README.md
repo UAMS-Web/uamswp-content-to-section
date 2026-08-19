@@ -249,13 +249,26 @@ inferring it.
 
 ```bash
 php tests/test-slashing.php
+php tests/test-html-to-blocks.php
 ```
 
-Regression cover for the 1.0.0 slashing bug: damage detection, that
-`write_content()` round-trips block markup byte-for-byte, and which source a
-revert or repair picks. `tests/stubs.php` fakes just enough WordPress to load
-the converter, including the fact that both `wp_update_post()` and
-`add_post_meta()` unslash what they are handed. No PHPUnit, no database.
+`test-slashing.php` is regression cover for the 1.0.0 slashing bug: damage
+detection, that `write_content()` and the backup write both round-trip block
+markup byte-for-byte, which source a revert or repair picks, and that a repair
+refuses rather than reporting success when it cannot be trusted.
+
+`test-html-to-blocks.php` covers the WYSIWYG parser, currently paragraph
+alignment — including that a source already carrying `has-text-align-*` is not
+given it twice.
+
+`tests/stubs.php` fakes just enough WordPress to load both, including the fact
+that `wp_update_post()` and `add_post_meta()` unslash what they are handed and
+that `add_post_meta()` refuses to overwrite a `$unique` row. No PHPUnit, no
+database.
+
+Both suites are mutation-checked: removing a guard or a `wp_slash()` they cover
+must turn them red. If a change to this plugin leaves them green, assume the
+change is untested rather than safe.
 
 ## Filters
 

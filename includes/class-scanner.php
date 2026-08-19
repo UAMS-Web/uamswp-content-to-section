@@ -288,18 +288,21 @@ class UAMS_C2S_Scanner {
 
 		$params = array_merge( $params, $statuses );
 
-		$sql = "SELECT ID FROM {$wpdb->posts} WHERE ( {$clauses} ) AND post_status IN ( {$status_slots} ) ORDER BY post_type ASC, ID ASC";
+		// Select the content the predicate needs rather than re-fetching it per
+		// row. The markers are substrings of the *correctly* slashed form too, so
+		// every post this plugin has successfully converted is a candidate -- the
+		// prefilter's cost grows with the plugin's success, and a get_post() per
+		// candidate made that 1 + N queries, twice per Tools render.
+		$sql = "SELECT ID, post_content FROM {$wpdb->posts} WHERE ( {$clauses} ) AND post_status IN ( {$status_slots} ) ORDER BY post_type ASC, ID ASC";
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
-		$ids = $wpdb->get_col( $wpdb->prepare( $sql, $params ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
 
 		$damaged = array();
 
-		foreach ( (array) $ids as $id ) {
-			$post = get_post( (int) $id );
-
-			if ( $post && UAMS_C2S_Converter::looks_damaged( $post->post_content ) ) {
-				$damaged[] = (int) $post->ID;
+		foreach ( (array) $rows as $row ) {
+			if ( UAMS_C2S_Converter::looks_damaged( $row->post_content ) ) {
+				$damaged[] = (int) $row->ID;
 			}
 		}
 
