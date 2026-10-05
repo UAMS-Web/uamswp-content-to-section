@@ -1,0 +1,31 @@
+{
+    "name": "uams-web/uamswp-content-to-section",
+    "description": "Development tooling for uamswp-content-to-section",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "php-stubs/wordpress-stubs": "6.8",
+        "php-stubs/wp-cli-stubs": "^2.12",
+        "phpstan/phpstan": "^2.2",
+        "rector/rector": "^2.6",
+        "szepeviktor/phpstan-wordpress": "^2.0"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    },
+    "scripts": {
+        "stan": "phpstan analyse --no-progress --memory-limit=2G",
+        "refactor": "rector",
+        "refactor:sweep": "rector --clear-cache --config=rector-sweep.php",
+        "test:refactor": "rector --dry-run",
+        "test:refactor:sweep": "rector --dry-run --clear-cache --config=rector-sweep.php",
+        "pint": "pint",
+        "test:pint": "pint --test"
+    }
+}

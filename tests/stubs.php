@@ -67,10 +67,15 @@ class WP_Error {
 class WP_Post {
 
 	public $ID            = 0;
+
 	public $post_type     = 'page';
+
 	public $post_parent   = 0;
+
 	public $post_content  = '';
+
 	public $post_date_gmt = '';
+
 	public $post_name     = '';
 
 	/**
@@ -78,31 +83,30 @@ class WP_Post {
 	 *
 	 * @param array $props Property overrides.
 	 */
-	public function __construct( array $props = array() ) {
+	public function __construct( array $props = [] ) {
 		foreach ( $props as $key => $value ) {
 			$this->$key = $value;
 		}
 	}
 }
 
-$GLOBALS['uams_c2s_test_posts'] = array();
-$GLOBALS['uams_c2s_test_meta']  = array();
+$GLOBALS['uams_c2s_test_posts'] = [];
+$GLOBALS['uams_c2s_test_meta']  = [];
 
 /**
  * Clear the fake site between cases.
  */
-function uams_c2s_test_reset() {
-	$GLOBALS['uams_c2s_test_posts'] = array();
-	$GLOBALS['uams_c2s_test_meta']  = array();
+function uams_c2s_test_reset(): void {
+	$GLOBALS['uams_c2s_test_posts'] = [];
+	$GLOBALS['uams_c2s_test_meta']  = [];
 }
 
 /**
  * Add a post or revision to the fake site.
  *
  * @param array $props WP_Post properties.
- * @return WP_Post
  */
-function uams_c2s_test_post( array $props ) {
+function uams_c2s_test_post( array $props ): \WP_Post {
 	$post = new WP_Post( $props );
 
 	$GLOBALS['uams_c2s_test_posts'][ $post->ID ] = $post;
@@ -110,25 +114,25 @@ function uams_c2s_test_post( array $props ) {
 	return $post;
 }
 
-function is_wp_error( $thing ) {
+function is_wp_error( $thing ): bool {
 	return $thing instanceof WP_Error;
 }
 
 function get_post( $post ) {
 	$id = $post instanceof WP_Post ? $post->ID : (int) $post;
 
-	return isset( $GLOBALS['uams_c2s_test_posts'][ $id ] ) ? $GLOBALS['uams_c2s_test_posts'][ $id ] : null;
+	return $GLOBALS['uams_c2s_test_posts'][ $id ] ?? null;
 }
 
 function get_post_meta( $id, $key, $single = false ) {
-	return isset( $GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] ) ? $GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] : '';
+	return $GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] ?? '';
 }
 
-function metadata_exists( $type, $id, $key ) {
+function metadata_exists( $type, $id, $key ): bool {
 	return isset( $GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] );
 }
 
-function add_post_meta( $id, $key, $value, $unique = false ) {
+function add_post_meta( $id, $key, $value, $unique = false ): bool {
 	// Real WP writes nothing and returns false when $unique is set and a row
 	// already exists. convert_post() depends on that to avoid replacing a good
 	// backup with a damaged one, so the stub has to refuse too.
@@ -142,23 +146,23 @@ function add_post_meta( $id, $key, $value, $unique = false ) {
 	return true;
 }
 
-function update_post_meta( $id, $key, $value ) {
+function update_post_meta( $id, $key, $value ): bool {
 	$GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] = is_string( $value ) ? wp_unslash( $value ) : $value;
 
 	return true;
 }
 
-function delete_post_meta( $id, $key ) {
+function delete_post_meta( $id, $key ): bool {
 	unset( $GLOBALS['uams_c2s_test_meta'][ $id ][ $key ] );
 
 	return true;
 }
 
-function wp_slash( $value ) {
+function wp_slash( $value ): string {
 	return addslashes( $value );
 }
 
-function wp_unslash( $value ) {
+function wp_unslash( $value ): string {
 	return stripslashes( $value );
 }
 
@@ -175,8 +179,11 @@ function wp_update_post( $postarr, $wp_error = false ) {
 	return $id;
 }
 
-function wp_get_post_revisions( $id, $args = array() ) {
-	$out = array();
+/**
+ * @return mixed[]
+ */
+function wp_get_post_revisions( $id, $args = [] ): array {
+	$out = [];
 
 	foreach ( $GLOBALS['uams_c2s_test_posts'] as $post ) {
 		if ( 'revision' === $post->post_type && (int) $post->post_parent === (int) $id ) {
@@ -189,22 +196,23 @@ function wp_get_post_revisions( $id, $args = array() ) {
 	return $out;
 }
 
-function wp_is_post_autosave( $post ) {
+function wp_is_post_autosave( $post ): bool {
 	return false !== strpos( $post->post_name, '-autosave' );
 }
 
-function current_user_can( $capability ) {
+function current_user_can( $capability ): bool {
 	return true;
 }
 
-function has_filter( $tag, $callback = false ) {
+function has_filter( $tag, $callback = false ): bool {
 	return false;
 }
 
-function kses_remove_filters() {}
-function kses_init_filters() {}
+function kses_remove_filters(): void {}
 
-function get_current_user_id() {
+function kses_init_filters(): void {}
+
+function get_current_user_id(): int {
 	return 1;
 }
 
@@ -216,11 +224,11 @@ function apply_filters( $tag, $value ) {
 	return $value;
 }
 
-function wp_parse_args( $args, $defaults ) {
+function wp_parse_args( $args, $defaults ): array {
 	return array_merge( $defaults, (array) $args );
 }
 
-function sanitize_key( $key ) {
+function sanitize_key( $key ): ?string {
 	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
 }
 
@@ -239,26 +247,26 @@ function shortcode_unautop( $text ) {
 	return $text;
 }
 
-function esc_attr( $text ) {
+function esc_attr( $text ): string {
 	return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
 }
 
-function wp_strip_all_tags( $text, $remove_breaks = false ) {
+function wp_strip_all_tags( $text, $remove_breaks = false ): string {
 	return strip_tags( (string) $text );
 }
 
-function uams_c2s_default_args() {
-	return array(
+function uams_c2s_default_args(): array {
+	return [
 		'include_geo'     => false,
 		'demote_headings' => false,
 		'max_heading'     => 2,
 		'list_format'     => 'v3',
-	);
+	];
 }
 
-require_once dirname( __DIR__ ) . '/includes/class-converter.php';
-require_once dirname( __DIR__ ) . '/includes/class-scanner.php';
-require_once dirname( __DIR__ ) . '/includes/class-html-to-blocks.php';
+require_once __DIR__ . '/../includes/class-converter.php';
+require_once __DIR__ . '/../includes/class-scanner.php';
+require_once __DIR__ . '/../includes/class-html-to-blocks.php';
 
 /**
  * Reaches the converter's protected restore path.
@@ -291,32 +299,31 @@ class UAMS_C2S_Test_Converter extends UAMS_C2S_Converter {
 	 *
 	 * @var array|null
 	 */
-	public $canned = null;
+	public $canned;
 
 	/**
-	 * Stand in for the block parser so the post-level lifecycle can be driven.
-	 *
-	 * stubs.php defines no parse_blocks()/serialize_blocks(), so the real
-	 * convert_content() cannot run here. Overriding it at this seam lets
-	 * convert_post(), revert_post() and repair_post() execute for real -- which
-	 * is what actually exercises the backup write and the conversion record.
-	 * This deliberately does NOT test the block parser.
-	 *
-	 * @param string $content Post content.
-	 * @return array
-	 */
-	public function convert_content( $content ) {
+     * Stand in for the block parser so the post-level lifecycle can be driven.
+     *
+     * stubs.php defines no parse_blocks()/serialize_blocks(), so the real
+     * convert_content() cannot run here. Overriding it at this seam lets
+     * convert_post(), revert_post() and repair_post() execute for real -- which
+     * is what actually exercises the backup write and the conversion record.
+     * This deliberately does NOT test the block parser.
+     *
+     * @param string $content Post content.
+     */
+    public function convert_content( $content ): array {
 		if ( null === $this->canned ) {
 			throw new RuntimeException( 'convert_content() reached with no canned result set.' );
 		}
 
 		return array_merge(
-			array(
+			[
 				'content'   => $content,
 				'converted' => 1,
 				'skipped'   => 0,
-				'notices'   => array(),
-			),
+				'notices'   => [],
+			],
 			$this->canned
 		);
 	}
@@ -335,7 +342,7 @@ $GLOBALS['uams_c2s_test_failures'] = 0;
  * @param mixed  $actual   Value under test.
  * @param mixed  $expected Expected value.
  */
-function uams_c2s_test_is( $label, $actual, $expected ) {
+function uams_c2s_test_is( $label, $actual, $expected ): void {
 	$pass = $actual === $expected;
 
 	if ( ! $pass ) {
@@ -353,7 +360,7 @@ function uams_c2s_test_is( $label, $actual, $expected ) {
 /**
  * Print the tally and set the exit code.
  */
-function uams_c2s_test_done() {
+function uams_c2s_test_done(): void {
 	$failures = $GLOBALS['uams_c2s_test_failures'];
 
 	echo "\n" . ( $failures ? sprintf( "%d failure(s)\n", $failures ) : "all green\n" );

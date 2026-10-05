@@ -20,21 +20,21 @@ class UAMS_C2S_HTML_To_Blocks {
 	 *
 	 * @var array<string,mixed>
 	 */
-	protected $args;
+	protected array $args;
 
 	/**
 	 * Human-readable notes about lossy or noteworthy conversions.
 	 *
 	 * @var string[]
 	 */
-	protected $notices = array();
+	protected $notices = [];
 
 	/**
 	 * Constructor.
 	 *
 	 * @param array<string,mixed> $args Conversion arguments.
 	 */
-	public function __construct( array $args = array() ) {
+	public function __construct( array $args = [] ) {
 		$this->args = wp_parse_args( $args, uams_c2s_default_args() );
 	}
 
@@ -43,7 +43,7 @@ class UAMS_C2S_HTML_To_Blocks {
 	 *
 	 * @return string[]
 	 */
-	public function get_notices() {
+	public function get_notices(): array {
 		return array_values( array_unique( $this->notices ) );
 	}
 
@@ -53,27 +53,27 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param string $html Raw ACF WYSIWYG value.
 	 * @return array[] Parsed-block arrays.
 	 */
-	public function convert( $html ) {
-		$this->notices = array();
+	public function convert( $html ): array {
+		$this->notices = [];
 
 		$html = $this->prepare( (string) $html );
 
 		if ( '' === trim( $html ) ) {
-			return array();
+			return [];
 		}
 
 		$dom = $this->load( $html );
 
-		if ( ! $dom ) {
+		if ( !$dom instanceof \DOMDocument ) {
 			$this->note( __( 'HTML could not be parsed; the body was preserved as a single Custom HTML block.', 'uams-c2s' ) );
 
-			return array( $this->html_block( $html ) );
+			return [ $this->html_block( $html ) ];
 		}
 
 		$body = $dom->getElementsByTagName( 'body' )->item( 0 );
 
 		if ( ! $body ) {
-			return array( $this->html_block( $html ) );
+			return [ $this->html_block( $html ) ];
 		}
 
 		return $this->children_to_blocks( $body );
@@ -95,18 +95,16 @@ class UAMS_C2S_HTML_To_Blocks {
 	 */
 	protected function prepare( $html ) {
 		$html = wpautop( $html );
-		$html = shortcode_unautop( $html );
 
-		return $html;
+		return shortcode_unautop( $html );
 	}
 
 	/**
-	 * Load HTML into a DOMDocument as UTF-8.
-	 *
-	 * @param string $html HTML fragment.
-	 * @return DOMDocument|null
-	 */
-	protected function load( $html ) {
+     * Load HTML into a DOMDocument as UTF-8.
+     *
+     * @param string $html HTML fragment.
+     */
+    protected function load( $html ): ?\DOMDocument {
 		if ( ! class_exists( 'DOMDocument' ) ) {
 			return null;
 		}
@@ -135,8 +133,8 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMNode $parent Parent node.
 	 * @return array[]
 	 */
-	protected function children_to_blocks( DOMNode $parent ) {
-		$blocks = array();
+	protected function children_to_blocks( DOMNode $parent ): array {
+		$blocks = [];
 
 		foreach ( iterator_to_array( $parent->childNodes ) as $node ) {
 			foreach ( $this->node_to_blocks( $node ) as $block ) {
@@ -153,17 +151,17 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMNode $node Node.
 	 * @return array[]
 	 */
-	protected function node_to_blocks( DOMNode $node ) {
+	protected function node_to_blocks( DOMNode $node ): array {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
 			return $this->text_to_blocks( $node );
 		}
 
 		if ( XML_COMMENT_NODE === $node->nodeType ) {
-			return array();
+			return [];
 		}
 
 		if ( XML_ELEMENT_NODE !== $node->nodeType ) {
-			return array();
+			return [];
 		}
 
 		$tag = strtolower( $node->nodeName );
@@ -182,31 +180,31 @@ class UAMS_C2S_HTML_To_Blocks {
 
 			case 'ul':
 			case 'ol':
-				return array( $this->list_block( $node ) );
+				return [ $this->list_block( $node ) ];
 
 			case 'blockquote':
-				return array( $this->quote( $node ) );
+				return [ $this->quote( $node ) ];
 
 			case 'table':
-				return array( $this->table( $node ) );
+				return [ $this->table( $node ) ];
 
 			case 'figure':
 				return $this->figure( $node );
 
 			case 'img':
-				return array( $this->image_block( $node ) );
+				return [ $this->image_block( $node ) ];
 
 			case 'iframe':
-				return array( $this->iframe( $node ) );
+				return [ $this->iframe( $node ) ];
 
 			case 'hr':
-				return array( $this->separator() );
+				return [ $this->separator() ];
 
 			case 'pre':
-				return array( $this->preformatted( $node ) );
+				return [ $this->preformatted( $node ) ];
 
 			case 'br':
-				return array();
+				return [];
 
 			case 'script':
 			case 'style':
@@ -223,7 +221,7 @@ class UAMS_C2S_HTML_To_Blocks {
 					)
 				);
 
-				return array( $this->html_block( $this->outer_html( $node ) ) );
+				return [ $this->html_block( $this->outer_html( $node ) ) ];
 
 			case 'div':
 			case 'section':
@@ -240,7 +238,7 @@ class UAMS_C2S_HTML_To_Blocks {
 					)
 				);
 
-				return array( $this->html_block( $this->outer_html( $node ) ) );
+				return [ $this->html_block( $this->outer_html( $node ) ) ];
 
 			default:
 				$this->note(
@@ -251,7 +249,7 @@ class UAMS_C2S_HTML_To_Blocks {
 					)
 				);
 
-				return array( $this->html_block( $this->outer_html( $node ) ) );
+				return [ $this->html_block( $this->outer_html( $node ) ) ];
 		}
 	}
 
@@ -261,18 +259,18 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMNode $node Text node.
 	 * @return array[]
 	 */
-	protected function text_to_blocks( DOMNode $node ) {
+	protected function text_to_blocks( DOMNode $node ): array {
 		$text = trim( $node->textContent );
 
 		if ( '' === $text ) {
-			return array();
+			return [];
 		}
 
 		if ( $this->is_shortcode( $text ) ) {
-			return array( $this->shortcode_block( $text ) );
+			return [ $this->shortcode_block( $text ) ];
 		}
 
-		return array( $this->block( 'core/paragraph', array(), '<p>' . trim( $this->outer_html( $node ) ) . '</p>' ) );
+		return [ $this->block( 'core/paragraph', [], '<p>' . trim( $this->outer_html( $node ) ) . '</p>' ) ];
 	}
 
 	/* ---------------------------------------------------------------------
@@ -285,11 +283,11 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMElement $node Paragraph element.
 	 * @return array[]
 	 */
-	protected function paragraph( DOMElement $node ) {
+	protected function paragraph( DOMElement $node ): array {
 		$inner = trim( $this->inner_html( $node ) );
 
 		if ( '' === $inner ) {
-			return array();
+			return [];
 		}
 
 		$only = $this->significant_children( $node );
@@ -306,11 +304,11 @@ class UAMS_C2S_HTML_To_Blocks {
 		}
 
 		if ( $markup_only && $this->is_blank( $node->textContent ) ) {
-			return array();
+			return [];
 		}
 
 		// Scripts, forms and media players must survive byte for byte.
-		foreach ( array( 'script', 'style', 'form', 'object', 'video', 'audio', 'embed', 'canvas', 'svg', 'noscript' ) as $opaque ) {
+		foreach ( [ 'script', 'style', 'form', 'object', 'video', 'audio', 'embed', 'canvas', 'svg', 'noscript' ] as $opaque ) {
 			if ( $node->getElementsByTagName( $opaque )->length > 0 ) {
 				$this->note(
 					sprintf(
@@ -320,7 +318,7 @@ class UAMS_C2S_HTML_To_Blocks {
 					)
 				);
 
-				return array( $this->html_block( $inner ) );
+				return [ $this->html_block( $inner ) ];
 			}
 		}
 
@@ -329,7 +327,7 @@ class UAMS_C2S_HTML_To_Blocks {
 
 		// A paragraph holding nothing but a shortcode.
 		if ( $is_plain && $this->is_shortcode( $text ) ) {
-			return array( $this->shortcode_block( $text ) );
+			return [ $this->shortcode_block( $text ) ];
 		}
 
 		// A paragraph holding nothing but a URL: the front end auto-embedded it.
@@ -339,7 +337,7 @@ class UAMS_C2S_HTML_To_Blocks {
 				// still see it, and flag it for review.
 				$this->note( __( 'A "httpv://" YouTube Lyte URL was kept as plain text -- confirm it still lazy-loads.', 'uams-c2s' ) );
 			} else {
-				return array( $this->embed_block( $text ) );
+				return [ $this->embed_block( $text ) ];
 			}
 		}
 
@@ -347,11 +345,11 @@ class UAMS_C2S_HTML_To_Blocks {
 			$child_tag = strtolower( $only[0]->nodeName );
 
 			if ( 'img' === $child_tag ) {
-				return array( $this->image_block( $only[0] ) );
+				return [ $this->image_block( $only[0] ) ];
 			}
 
 			if ( 'iframe' === $child_tag ) {
-				return array( $this->iframe( $only[0] ) );
+				return [ $this->iframe( $only[0] ) ];
 			}
 
 			if ( 'a' === $child_tag ) {
@@ -361,12 +359,12 @@ class UAMS_C2S_HTML_To_Blocks {
 					&& XML_ELEMENT_NODE === $grandchildren[0]->nodeType
 					&& 'img' === strtolower( $grandchildren[0]->nodeName )
 				) {
-					return array( $this->image_block( $grandchildren[0], $only[0]->getAttribute( 'href' ) ) );
+					return [ $this->image_block( $grandchildren[0], $only[0]->getAttribute( 'href' ) ) ];
 				}
 			}
 		}
 
-		$attrs   = array();
+		$attrs   = [];
 		$classes = $this->class_list( $node );
 		$align   = $this->text_align( $classes );
 
@@ -377,14 +375,14 @@ class UAMS_C2S_HTML_To_Blocks {
 		$extra = array_values(
 			array_diff(
 				$classes,
-				array(
+				[
 					'text-left',
 					'text-center',
 					'text-right',
 					'has-text-align-left',
 					'has-text-align-center',
 					'has-text-align-right',
-				)
+				]
 			)
 		);
 
@@ -395,13 +393,13 @@ class UAMS_C2S_HTML_To_Blocks {
 			$classes[]      = 'has-text-align-' . $align;
 		}
 
-		if ( $extra ) {
+		if ( $extra !== [] ) {
 			$attrs['className'] = implode( ' ', $extra );
 		}
 
-		$class_attr = $classes ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '';
+		$class_attr = $classes !== [] ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '';
 
-		return array( $this->block( 'core/paragraph', $attrs, '<p' . $class_attr . '>' . $inner . '</p>' ) );
+		return [ $this->block( 'core/paragraph', $attrs, '<p' . $class_attr . '>' . $inner . '</p>' ) ];
 	}
 
 	/**
@@ -411,11 +409,11 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param int        $level Heading level from the tag name.
 	 * @return array[]
 	 */
-	protected function heading( DOMElement $node, $level ) {
+	protected function heading( DOMElement $node, $level ): array {
 		$inner = trim( $this->inner_html( $node ) );
 
 		if ( '' === $inner ) {
-			return array();
+			return [];
 		}
 
 		$section_level = (int) $this->args['max_heading'];
@@ -435,8 +433,8 @@ class UAMS_C2S_HTML_To_Blocks {
 
 		$level = min( 6, max( 1, $level ) );
 
-		$attrs   = array();
-		$classes = array( 'wp-block-heading' );
+		$attrs   = [];
+		$classes = [ 'wp-block-heading' ];
 
 		if ( 2 !== $level ) {
 			$attrs['level'] = $level;
@@ -465,24 +463,23 @@ class UAMS_C2S_HTML_To_Blocks {
 			$inner
 		);
 
-		return array( $this->block( 'core/heading', $attrs, $html ) );
+		return [ $this->block( 'core/heading', $attrs, $html ) ];
 	}
 
 	/**
-	 * Ordered or unordered list.
-	 *
-	 * @param DOMElement $node List element.
-	 * @return array
-	 */
-	protected function list_block( DOMElement $node ) {
+     * Ordered or unordered list.
+     *
+     * @param DOMElement $node List element.
+     */
+    protected function list_block( DOMElement $node ): array {
 		$ordered = ( 'ol' === strtolower( $node->nodeName ) );
-		$attrs   = $ordered ? array( 'ordered' => true ) : array();
+		$attrs   = $ordered ? [ 'ordered' => true ] : [];
 
 		if ( 'v3' !== $this->args['list_format'] ) {
 			return $this->block( 'core/list', $attrs, $this->outer_html( $node ) );
 		}
 
-		$items = array();
+		$items = [];
 
 		foreach ( $node->childNodes as $child ) {
 			if ( XML_ELEMENT_NODE === $child->nodeType && 'li' === strtolower( $child->nodeName ) ) {
@@ -490,7 +487,7 @@ class UAMS_C2S_HTML_To_Blocks {
 			}
 		}
 
-		if ( ! $items ) {
+		if ( $items === [] ) {
 			return $this->block( 'core/list', $attrs, $this->outer_html( $node ) );
 		}
 
@@ -504,28 +501,27 @@ class UAMS_C2S_HTML_To_Blocks {
 		$open  = "\n" . '<' . $tag . ' class="wp-block-list"' . ( $ordered && $start ? ' start="' . esc_attr( $start ) . '"' : '' ) . '>';
 		$close = '</' . $tag . '>' . "\n";
 
-		return array(
+		return [
 			'blockName'    => 'core/list',
 			'attrs'        => $attrs,
 			'innerBlocks'  => $items,
 			'innerHTML'    => $open . $close,
-			'innerContent' => array_merge( array( $open ), array_fill( 0, count( $items ), null ), array( $close ) ),
-		);
+			'innerContent' => array_merge( [ $open ], array_fill( 0, count( $items ), null ), [ $close ] ),
+		];
 	}
 
 	/**
-	 * A single list item, splitting out any nested list.
-	 *
-	 * @param DOMElement $node List item element.
-	 * @return array
-	 */
-	protected function list_item( DOMElement $node ) {
-		$nested  = array();
+     * A single list item, splitting out any nested list.
+     *
+     * @param DOMElement $node List item element.
+     */
+    protected function list_item( DOMElement $node ): array {
+		$nested  = [];
 		$content = '';
 
 		foreach ( $node->childNodes as $child ) {
 			if ( XML_ELEMENT_NODE === $child->nodeType
-				&& in_array( strtolower( $child->nodeName ), array( 'ul', 'ol' ), true )
+				&& in_array( strtolower( $child->nodeName ), [ 'ul', 'ol' ], true )
 			) {
 				$nested[] = $this->list_block( $child );
 				continue;
@@ -536,31 +532,30 @@ class UAMS_C2S_HTML_To_Blocks {
 
 		$content = trim( $content );
 
-		if ( ! $nested ) {
-			return $this->block( 'core/list-item', array(), '<li>' . $content . '</li>', false );
+		if ( $nested === [] ) {
+			return $this->block( 'core/list-item', [], '<li>' . $content . '</li>', false );
 		}
 
 		$open  = '<li>' . $content;
 		$close = '</li>';
 
-		return array(
+		return [
 			'blockName'    => 'core/list-item',
-			'attrs'        => array(),
+			'attrs'        => [],
 			'innerBlocks'  => $nested,
 			'innerHTML'    => $open . $close,
-			'innerContent' => array_merge( array( $open ), array_fill( 0, count( $nested ), null ), array( $close ) ),
-		);
+			'innerContent' => array_merge( [ $open ], array_fill( 0, count( $nested ), null ), [ $close ] ),
+		];
 	}
 
 	/**
-	 * Blockquote.
-	 *
-	 * @param DOMElement $node Blockquote element.
-	 * @return array
-	 */
-	protected function quote( DOMElement $node ) {
+     * Blockquote.
+     *
+     * @param DOMElement $node Blockquote element.
+     */
+    protected function quote( DOMElement $node ): array {
 		$cite  = '';
-		$inner = array();
+		$inner = [];
 
 		foreach ( iterator_to_array( $node->childNodes ) as $child ) {
 			$citation = $this->citation_from( $child );
@@ -575,20 +570,20 @@ class UAMS_C2S_HTML_To_Blocks {
 			}
 		}
 
-		if ( ! $inner ) {
-			$inner[] = $this->block( 'core/paragraph', array(), '<p></p>' );
+		if ( $inner === [] ) {
+			$inner[] = $this->block( 'core/paragraph', [], '<p></p>' );
 		}
 
 		$open  = "\n" . '<blockquote class="wp-block-quote">';
 		$close = ( '' !== $cite ? '<cite>' . $cite . '</cite>' : '' ) . '</blockquote>' . "\n";
 
-		return array(
+		return [
 			'blockName'    => 'core/quote',
-			'attrs'        => array(),
+			'attrs'        => [],
 			'innerBlocks'  => $inner,
 			'innerHTML'    => $open . $close,
-			'innerContent' => array_merge( array( $open ), array_fill( 0, count( $inner ), null ), array( $close ) ),
-		);
+			'innerContent' => array_merge( [ $open ], array_fill( 0, count( $inner ), null ), [ $close ] ),
+		];
 	}
 
 	/**
@@ -600,7 +595,7 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMNode $node Candidate node.
 	 * @return string|null Null when the node is not a citation.
 	 */
-	protected function citation_from( DOMNode $node ) {
+	protected function citation_from( DOMNode $node ): ?string {
 		if ( XML_ELEMENT_NODE !== $node->nodeType ) {
 			return null;
 		}
@@ -628,13 +623,12 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Table.
-	 *
-	 * @param DOMElement $node Table element.
-	 * @return array
-	 */
-	protected function table( DOMElement $node ) {
-		$attrs   = array();
+     * Table.
+     *
+     * @param DOMElement $node Table element.
+     */
+    protected function table( DOMElement $node ): array {
+		$attrs   = [];
 		$classes = $this->class_list( $node );
 
 		if ( in_array( 'is-style-stripes', $classes, true ) ) {
@@ -650,7 +644,7 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMElement $node Figure element.
 	 * @return array[]
 	 */
-	protected function figure( DOMElement $node ) {
+	protected function figure( DOMElement $node ): array {
 		$images = $node->getElementsByTagName( 'img' );
 
 		if ( $images->length > 0 ) {
@@ -669,35 +663,34 @@ class UAMS_C2S_HTML_To_Blocks {
 				$caption = trim( $this->inner_html( $captions->item( 0 ) ) );
 			}
 
-			return array( $this->image_block( $img, $link, $caption, $this->class_list( $node ) ) );
+			return [ $this->image_block( $img, $link, $caption, $this->class_list( $node ) ) ];
 		}
 
 		$iframes = $node->getElementsByTagName( 'iframe' );
 
 		if ( $iframes->length > 0 ) {
-			return array( $this->iframe( $iframes->item( 0 ) ) );
+			return [ $this->iframe( $iframes->item( 0 ) ) ];
 		}
 
 		$this->note( __( 'A <figure> with no image or iframe was preserved as a Custom HTML block.', 'uams-c2s' ) );
 
-		return array( $this->html_block( $this->outer_html( $node ) ) );
+		return [ $this->html_block( $this->outer_html( $node ) ) ];
 	}
 
 	/**
-	 * Image block built from an <img> element.
-	 *
-	 * @param DOMElement  $img            Image element.
-	 * @param string|null $link           Optional link href.
-	 * @param string      $caption        Optional caption HTML.
-	 * @param string[]    $figure_classes Classes taken from a wrapping <figure>.
-	 * @return array
-	 */
-	protected function image_block( DOMElement $img, $link = null, $caption = '', array $figure_classes = array() ) {
+     * Image block built from an <img> element.
+     *
+     * @param DOMElement  $img            Image element.
+     * @param string|null $link           Optional link href.
+     * @param string      $caption        Optional caption HTML.
+     * @param string[]    $figure_classes Classes taken from a wrapping <figure>.
+     */
+    protected function image_block( DOMElement $img, $link = null, $caption = '', array $figure_classes = [] ): array {
 		$src = $img->getAttribute( 'src' );
 		$alt = $img->getAttribute( 'alt' );
 
 		$classes = array_merge( $this->class_list( $img ), $figure_classes );
-		$attrs   = array();
+		$attrs   = [];
 
 		$id = 0;
 
@@ -780,12 +773,11 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Iframe -- promoted to an embed when the provider is recognised.
-	 *
-	 * @param DOMElement $node Iframe element.
-	 * @return array
-	 */
-	protected function iframe( DOMElement $node ) {
+     * Iframe -- promoted to an embed when the provider is recognised.
+     *
+     * @param DOMElement $node Iframe element.
+     */
+    protected function iframe( DOMElement $node ): array {
 		$src = $node->getAttribute( 'src' );
 		$url = $this->embeddable_url( $src );
 
@@ -799,110 +791,102 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Horizontal rule.
-	 *
-	 * @return array
-	 */
-	protected function separator() {
+     * Horizontal rule.
+     */
+    protected function separator(): array {
 		return $this->block(
 			'core/separator',
-			array(),
+			[],
 			'<hr class="wp-block-separator has-alpha-channel-opacity"/>'
 		);
 	}
 
 	/**
-	 * Preformatted text or code.
-	 *
-	 * @param DOMElement $node Pre element.
-	 * @return array
-	 */
-	protected function preformatted( DOMElement $node ) {
+     * Preformatted text or code.
+     *
+     * @param DOMElement $node Pre element.
+     */
+    protected function preformatted( DOMElement $node ): array {
 		$codes = $node->getElementsByTagName( 'code' );
 
 		if ( $codes->length > 0 ) {
 			return $this->block(
 				'core/code',
-				array(),
+				[],
 				'<pre class="wp-block-code"><code>' . trim( $this->inner_html( $codes->item( 0 ) ) ) . '</code></pre>'
 			);
 		}
 
 		return $this->block(
 			'core/preformatted',
-			array(),
+			[],
 			'<pre class="wp-block-preformatted">' . $this->inner_html( $node ) . '</pre>'
 		);
 	}
 
 	/* ---------------------------------------------------------------------
-	 * Block builders
-	 * ------------------------------------------------------------------ */
-
-	/**
-	 * Build a leaf block.
-	 *
-	 * @param string              $name  Block name.
-	 * @param array<string,mixed> $attrs Block attributes.
-	 * @param string              $html  Saved markup.
-	 * @param bool                $pad   Wrap the markup in newlines, as core does.
-	 * @return array
-	 */
-	protected function block( $name, array $attrs, $html, $pad = true ) {
+     * Block builders
+     * ------------------------------------------------------------------ */
+    /**
+     * Build a leaf block.
+     *
+     * @param string              $name  Block name.
+     * @param array<string,mixed> $attrs Block attributes.
+     * @param string              $html  Saved markup.
+     * @param bool                $pad   Wrap the markup in newlines, as core does.
+     */
+    protected function block( $name, array $attrs, $html, $pad = true ): array {
 		if ( $pad ) {
 			$html = "\n" . $html . "\n";
 		}
 
-		return array(
+		return [
 			'blockName'    => $name,
 			'attrs'        => $attrs,
-			'innerBlocks'  => array(),
+			'innerBlocks'  => [],
 			'innerHTML'    => $html,
-			'innerContent' => array( $html ),
-		);
+			'innerContent' => [ $html ],
+		];
 	}
 
 	/**
-	 * Custom HTML block.
-	 *
-	 * @param string $html Markup.
-	 * @return array
-	 */
-	protected function html_block( $html ) {
-		return $this->block( 'core/html', array(), trim( $html ) );
+     * Custom HTML block.
+     *
+     * @param string $html Markup.
+     */
+    protected function html_block( $html ): array {
+		return $this->block( 'core/html', [], trim( $html ) );
 	}
 
 	/**
-	 * Shortcode block.
-	 *
-	 * @param string $text Shortcode text.
-	 * @return array
-	 */
-	protected function shortcode_block( $text ) {
-		return $this->block( 'core/shortcode', array(), trim( $text ) );
+     * Shortcode block.
+     *
+     * @param string $text Shortcode text.
+     */
+    protected function shortcode_block( $text ): array {
+		return $this->block( 'core/shortcode', [], trim( $text ) );
 	}
 
 	/**
-	 * Embed block for a URL.
-	 *
-	 * @param string $url URL.
-	 * @return array
-	 */
-	protected function embed_block( $url ) {
-		$providers = array(
-			'youtube'     => array( 'youtube.com', 'youtu.be', 'youtube-nocookie.com' ),
-			'vimeo'       => array( 'vimeo.com' ),
-			'tiktok'      => array( 'tiktok.com' ),
-			'twitter'     => array( 'twitter.com', 'x.com' ),
-			'instagram'   => array( 'instagram.com' ),
-			'facebook'    => array( 'facebook.com' ),
-			'flickr'      => array( 'flickr.com', 'flic.kr' ),
-			'soundcloud'  => array( 'soundcloud.com' ),
-			'spotify'     => array( 'spotify.com' ),
-			'slideshare'  => array( 'slideshare.net' ),
-			'issuu'       => array( 'issuu.com' ),
-			'dailymotion' => array( 'dailymotion.com' ),
-		);
+     * Embed block for a URL.
+     *
+     * @param string $url URL.
+     */
+    protected function embed_block( $url ): array {
+		$providers = [
+			'youtube'     => [ 'youtube.com', 'youtu.be', 'youtube-nocookie.com' ],
+			'vimeo'       => [ 'vimeo.com' ],
+			'tiktok'      => [ 'tiktok.com' ],
+			'twitter'     => [ 'twitter.com', 'x.com' ],
+			'instagram'   => [ 'instagram.com' ],
+			'facebook'    => [ 'facebook.com' ],
+			'flickr'      => [ 'flickr.com', 'flic.kr' ],
+			'soundcloud'  => [ 'soundcloud.com' ],
+			'spotify'     => [ 'spotify.com' ],
+			'slideshare'  => [ 'slideshare.net' ],
+			'issuu'       => [ 'issuu.com' ],
+			'dailymotion' => [ 'dailymotion.com' ],
+		];
 
 		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
 		$slug = '';
@@ -916,18 +900,18 @@ class UAMS_C2S_HTML_To_Blocks {
 			}
 		}
 
-		$video = in_array( $slug, array( 'youtube', 'vimeo', 'tiktok', 'dailymotion' ), true );
+		$video = in_array( $slug, [ 'youtube', 'vimeo', 'tiktok', 'dailymotion' ], true );
 
-		$attrs = array(
+		$attrs = [
 			'url'  => $url,
 			'type' => $video ? 'video' : 'rich',
-		);
+		];
 
 		if ( $slug ) {
 			$attrs['providerNameSlug'] = $slug;
 		}
 
-		$classes = array( 'wp-block-embed' );
+		$classes = [ 'wp-block-embed' ];
 
 		if ( $slug ) {
 			$classes[] = 'is-type-' . $attrs['type'];
@@ -954,7 +938,7 @@ class UAMS_C2S_HTML_To_Blocks {
 		// The wrapper holds the raw URL as text -- esc_url() would rewrite "&"
 		// and desynchronise it from the url attribute. The scheme and the
 		// absence of whitespace are already guaranteed by is_url().
-		$safe_url = str_replace( array( '<', '>' ), array( '&lt;', '&gt;' ), $url );
+		$safe_url = str_replace( [ '<', '>' ], [ '&lt;', '&gt;' ], $url );
 
 		$html = '<figure class="' . esc_attr( implode( ' ', $classes ) ) . '"><div class="wp-block-embed__wrapper">'
 			. "\n" . $safe_url . "\n"
@@ -964,26 +948,23 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/* ---------------------------------------------------------------------
-	 * Helpers
-	 * ------------------------------------------------------------------ */
-
-	/**
-	 * Serialize a node including its own tag.
-	 *
-	 * @param DOMNode $node Node.
-	 * @return string
-	 */
-	protected function outer_html( DOMNode $node ) {
+     * Helpers
+     * ------------------------------------------------------------------ */
+    /**
+     * Serialize a node including its own tag.
+     *
+     * @param DOMNode $node Node.
+     */
+    protected function outer_html( DOMNode $node ): string {
 		return (string) $node->ownerDocument->saveHTML( $node );
 	}
 
 	/**
-	 * Serialize a node's children.
-	 *
-	 * @param DOMNode $node Node.
-	 * @return string
-	 */
-	protected function inner_html( DOMNode $node ) {
+     * Serialize a node's children.
+     *
+     * @param DOMNode $node Node.
+     */
+    protected function inner_html( DOMNode $node ): string {
 		$html = '';
 
 		foreach ( $node->childNodes as $child ) {
@@ -999,8 +980,8 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param DOMNode $node Node.
 	 * @return DOMNode[]
 	 */
-	protected function significant_children( DOMNode $node ) {
-		$children = array();
+	protected function significant_children( DOMNode $node ): array {
+		$children = [];
 
 		foreach ( $node->childNodes as $child ) {
 			if ( XML_TEXT_NODE === $child->nodeType && '' === trim( $child->textContent ) ) {
@@ -1025,13 +1006,13 @@ class UAMS_C2S_HTML_To_Blocks {
 	 */
 	protected function class_list( DOMNode $node ) {
 		if ( ! $node instanceof DOMElement ) {
-			return array();
+			return [];
 		}
 
 		$class = trim( $node->getAttribute( 'class' ) );
 
 		if ( '' === $class ) {
-			return array();
+			return [];
 		}
 
 		return array_values( array_filter( preg_split( '/\s+/', $class ) ) );
@@ -1043,15 +1024,15 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param string[] $classes Class names.
 	 * @return string Empty string when no alignment is present.
 	 */
-	protected function text_align( array $classes ) {
-		$map = array(
+	protected function text_align( array $classes ): string {
+		$map = [
 			'text-center'          => 'center',
 			'text-right'           => 'right',
 			'text-left'            => 'left',
 			'has-text-align-center' => 'center',
 			'has-text-align-right'  => 'right',
 			'has-text-align-left'   => 'left',
-		);
+		];
 
 		foreach ( $classes as $class ) {
 			if ( isset( $map[ $class ] ) ) {
@@ -1063,15 +1044,14 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Whether a string holds nothing but whitespace.
-	 *
-	 * Covers the Unicode separators the DOM produces from &nbsp; and friends,
-	 * which `trim()` leaves in place.
-	 *
-	 * @param string $text Text.
-	 * @return bool
-	 */
-	protected function is_blank( $text ) {
+     * Whether a string holds nothing but whitespace.
+     *
+     * Covers the Unicode separators the DOM produces from &nbsp; and friends,
+     * which `trim()` leaves in place.
+     *
+     * @param string $text Text.
+     */
+    protected function is_blank( $text ): bool {
 		$stripped = preg_replace( '/[\p{Z}\s\x{200B}\x{FEFF}]+/u', '', (string) $text );
 
 		if ( null === $stripped ) {
@@ -1083,12 +1063,11 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Whether a string is a single shortcode.
-	 *
-	 * @param string $text Text.
-	 * @return bool
-	 */
-	protected function is_shortcode( $text ) {
+     * Whether a string is a single shortcode.
+     *
+     * @param string $text Text.
+     */
+    protected function is_shortcode( $text ): bool {
 		$text = trim( $text );
 
 		return (bool) preg_match( '/^\[[a-zA-Z0-9_\-]+[\s\S]*\]$/', $text );
@@ -1116,7 +1095,7 @@ class UAMS_C2S_HTML_To_Blocks {
 	 * @param string $src Iframe source.
 	 * @return string Empty string when unrecognised.
 	 */
-	protected function embeddable_url( $src ) {
+	protected function embeddable_url( $src ): string {
 		if ( ! $src ) {
 			return '';
 		}
@@ -1133,12 +1112,11 @@ class UAMS_C2S_HTML_To_Blocks {
 	}
 
 	/**
-	 * Resolve an attachment ID from a URL, retrying without the size suffix.
-	 *
-	 * @param string $url Image URL.
-	 * @return int
-	 */
-	protected function attachment_id_from_url( $url ) {
+     * Resolve an attachment ID from a URL, retrying without the size suffix.
+     *
+     * @param string $url Image URL.
+     */
+    protected function attachment_id_from_url( $url ): int {
 		$id = attachment_url_to_postid( $url );
 
 		if ( $id ) {

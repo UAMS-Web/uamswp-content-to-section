@@ -13,9 +13,11 @@ defined( 'ABSPATH' ) || exit;
 class UAMS_C2S_Converter {
 
 	const SOURCE_BLOCK = 'acf/uams-content';
+
 	const TARGET_BLOCK = 'acf/uams-section';
 
 	const BACKUP_META    = '_uams_c2s_backup';
+
 	const CONVERTED_META = '_uams_c2s_converted';
 
 	/**
@@ -40,21 +42,21 @@ class UAMS_C2S_Converter {
 	 *
 	 * @var string[]
 	 */
-	const UNSLASHED_VERSIONS = array( '1.0.0' );
+	const UNSLASHED_VERSIONS = [ '1.0.0' ];
 
 	/**
 	 * Conversion arguments.
 	 *
 	 * @var array<string,mixed>
 	 */
-	protected $args;
+	protected array $args;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param array<string,mixed> $args Conversion arguments.
 	 */
-	public function __construct( array $args = array() ) {
+	public function __construct( array $args = [] ) {
 		$this->args = wp_parse_args( $args, uams_c2s_default_args() );
 	}
 
@@ -68,22 +70,22 @@ class UAMS_C2S_Converter {
 	 * @param string $content Post content.
 	 * @return array{content:string,converted:int,skipped:int,notices:string[]}
 	 */
-	public function convert_content( $content ) {
-		$stats = array(
+	public function convert_content( $content ): array {
+		$stats = [
 			'converted' => 0,
 			'skipped'   => 0,
-			'notices'   => array(),
-		);
+			'notices'   => [],
+		];
 
 		$blocks = parse_blocks( $content );
 		$blocks = $this->walk( $blocks, $stats );
 
-		return array(
+		return [
 			'content'   => serialize_blocks( $blocks ),
 			'converted' => $stats['converted'],
 			'skipped'   => $stats['skipped'],
 			'notices'   => array_values( array_unique( $stats['notices'] ) ),
-		);
+		];
 	}
 
 	/**
@@ -93,8 +95,8 @@ class UAMS_C2S_Converter {
 	 * @param array   $stats  Running stats, by reference.
 	 * @return array[]
 	 */
-	protected function walk( array $blocks, array &$stats ) {
-		$out = array();
+	protected function walk( array $blocks, array &$stats ): array {
+		$out = [];
 
 		foreach ( $blocks as $block ) {
 			if ( ! empty( $block['innerBlocks'] ) ) {
@@ -123,8 +125,8 @@ class UAMS_C2S_Converter {
 	 * @param array $stats Running stats, by reference.
 	 * @return array|null Null when the block was intentionally left alone.
 	 */
-	public function convert_block( array $block, array &$stats ) {
-		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+	public function convert_block( array $block, array &$stats ): ?array {
+		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : [];
 		$data  = self::block_data( $attrs );
 
 		// Every Content block on every target site nests its fields under `data`,
@@ -136,8 +138,8 @@ class UAMS_C2S_Converter {
 			$stats['notices'][] = __( 'A Content block did not store its fields under "data". Its heading and background colour could not be read, so the Section was created with the defaults. Check that block by hand.', 'uams-c2s' );
 		}
 
-		$geo        = isset( $data['content_geo'] ) ? $data['content_geo'] : '';
-		$geo_region = isset( $data['content_geo_region'] ) ? $data['content_geo_region'] : array();
+		$geo        = $data['content_geo'] ?? '';
+		$geo_region = $data['content_geo_region'] ?? [];
 
 		$has_geo = ! empty( $geo ) && ! empty( $geo_region );
 
@@ -160,10 +162,10 @@ class UAMS_C2S_Converter {
 		$target_keys = UAMS_C2S_Field_Map::target_keys();
 		$pairs       = UAMS_C2S_Field_Map::pairs();
 
-		$new_data = array();
+		$new_data = [];
 
 		foreach ( $pairs as $from => $to ) {
-			$value = isset( $data[ $from ] ) ? $data[ $from ] : '';
+			$value = $data[ $from ] ?? '';
 
 			if ( 'section_hide_heading' === $to ) {
 				$value = $value ? 1 : 0;
@@ -174,7 +176,7 @@ class UAMS_C2S_Converter {
 			}
 
 			$new_data[ $to ]       = $value;
-			$new_data[ '_' . $to ] = isset( $target_keys[ $to ] ) ? $target_keys[ $to ] : '';
+			$new_data[ '_' . $to ] = $target_keys[ $to ] ?? '';
 		}
 
 		// Body: WYSIWYG -> inner blocks.
@@ -188,14 +190,14 @@ class UAMS_C2S_Converter {
 			$stats['notices'][] = $notice;
 		}
 
-		if ( ! $inner_blocks ) {
+		if ( $inner_blocks === [] ) {
 			$stats['notices'][] = __( 'A Content block had an empty body; the Section block was created with no inner blocks.', 'uams-c2s' );
 		}
 
-		$new_attrs = array(
+		$new_attrs = [
 			'name' => self::TARGET_BLOCK,
 			'data' => $new_data,
-		);
+		];
 
 		// ACF generates its own block id when absent; mirror the source block's
 		// convention rather than reusing its id.
@@ -220,27 +222,26 @@ class UAMS_C2S_Converter {
 
 		$count = count( $inner_blocks );
 
-		return array(
+		return [
 			'blockName'    => self::TARGET_BLOCK,
 			'attrs'        => $new_attrs,
 			'innerBlocks'  => $inner_blocks,
 			'innerHTML'    => '',
 			'innerContent' => $this->inner_content_padding( $count ),
-		);
+		];
 	}
 
 	/**
-	 * Build the innerContent array core would produce for N inner blocks.
-	 *
-	 * @param int $count Inner block count.
-	 * @return array
-	 */
-	protected function inner_content_padding( $count ) {
+     * Build the innerContent array core would produce for N inner blocks.
+     *
+     * @param int $count Inner block count.
+     */
+    protected function inner_content_padding( $count ): array {
 		if ( $count < 1 ) {
-			return array( "\n" );
+			return [ "\n" ];
 		}
 
-		$content = array( "\n" );
+		$content = [ "\n" ];
 
 		for ( $i = 0; $i < $count; $i++ ) {
 			$content[] = null;
@@ -269,8 +270,8 @@ class UAMS_C2S_Converter {
 	 * @param array $attrs Block attributes.
 	 * @return array<string,mixed>
 	 */
-	public static function block_data( array $attrs ) {
-		return ( isset( $attrs['data'] ) && is_array( $attrs['data'] ) ) ? $attrs['data'] : array();
+	public static function block_data( array $attrs ): array {
+		return ( isset( $attrs['data'] ) && is_array( $attrs['data'] ) ) ? $attrs['data'] : [];
 	}
 
 	/* ---------------------------------------------------------------------
@@ -340,14 +341,14 @@ class UAMS_C2S_Converter {
 		update_post_meta(
 			$post->ID,
 			self::CONVERTED_META,
-			array(
+			[
 				'time'            => time(),
 				'user'            => get_current_user_id(),
 				'converted'       => $result['converted'],
 				'skipped'         => $result['skipped'],
 				'version'         => UAMS_C2S_VERSION,
 				'source_revision' => $source_revision,
-			)
+			]
 		);
 
 		$result['updated'] = true;
@@ -465,12 +466,12 @@ class UAMS_C2S_Converter {
 	 * @param string  $reason 'clean', 'mismatch' or 'not_converted'.
 	 * @return array{post_id:int,repaired:false,reason:string}
 	 */
-	protected function refusal( WP_Post $post, $reason ) {
-		return array(
+	protected function refusal( WP_Post $post, $reason ): array {
+		return [
 			'post_id'  => (int) $post->ID,
 			'repaired' => false,
 			'reason'   => $reason,
-		);
+		];
 	}
 
 	/**
@@ -485,10 +486,10 @@ class UAMS_C2S_Converter {
 	 * @param int|WP_Post $post Post.
 	 * @return array{post_id:int,damaged:bool,source:string,label:string,error:string,sample:string,converted:array}
 	 */
-	public function repair_plan( $post ) {
+	public function repair_plan( $post ): array {
 		$post = get_post( $post );
 
-		$plan = array(
+		$plan = [
 			'post_id'   => $post ? (int) $post->ID : 0,
 			'damaged'   => false,
 			'at_risk'   => false,
@@ -497,8 +498,8 @@ class UAMS_C2S_Converter {
 			'verified'  => '',
 			'error'     => '',
 			'sample'    => '',
-			'converted' => array(),
-		);
+			'converted' => [],
+		];
 
 		if ( ! $post ) {
 			$plan['error'] = __( 'Post not found.', 'uams-c2s' );
@@ -507,11 +508,11 @@ class UAMS_C2S_Converter {
 		}
 
 		$record = get_post_meta( $post->ID, self::CONVERTED_META, true );
-		$record = is_array( $record ) ? $record : array();
+		$record = is_array( $record ) ? $record : [];
 
 		$plan['converted'] = $record;
 		$plan['damaged']   = self::looks_damaged( $post->post_content );
-		$plan['at_risk']   = self::wrote_unslashed( isset( $record['version'] ) ? $record['version'] : '' );
+		$plan['at_risk']   = self::wrote_unslashed( $record['version'] ?? '' );
 
 		if ( ! $plan['damaged'] && ! $plan['at_risk'] ) {
 			return $plan;
@@ -535,26 +536,23 @@ class UAMS_C2S_Converter {
 	}
 
 	/* ---------------------------------------------------------------------
-	 * Reading and writing content safely
-	 * ------------------------------------------------------------------ */
-
-	/**
-	 * Does this markup show the stripped-backslash signature?
-	 *
-	 * @param string $content Post content.
-	 * @return bool
-	 */
-	public static function looks_damaged( $content ) {
+     * Reading and writing content safely
+     * ------------------------------------------------------------------ */
+    /**
+     * Does this markup show the stripped-backslash signature?
+     *
+     * @param string $content Post content.
+     */
+    public static function looks_damaged( $content ): bool {
 		return (bool) preg_match( self::DAMAGE_PATTERN, (string) $content );
 	}
 
 	/**
-	 * Did this plugin version write post content without slashing it?
-	 *
-	 * @param string $version Version from a conversion record.
-	 * @return bool
-	 */
-	public static function wrote_unslashed( $version ) {
+     * Did this plugin version write post content without slashing it?
+     *
+     * @param string $version Version from a conversion record.
+     */
+    public static function wrote_unslashed( $version ): bool {
 		return in_array( (string) $version, self::UNSLASHED_VERSIONS, true );
 	}
 
@@ -564,7 +562,7 @@ class UAMS_C2S_Converter {
 	 * @param int $post_id Post ID.
 	 * @return string Empty when this plugin has no record of converting it.
 	 */
-	public function converted_by( $post_id ) {
+	public function converted_by( $post_id ): string {
 		$record = get_post_meta( $post_id, self::CONVERTED_META, true );
 
 		return ( is_array( $record ) && ! empty( $record['version'] ) ) ? (string) $record['version'] : '';
@@ -581,7 +579,7 @@ class UAMS_C2S_Converter {
 	 * @param int    $padding Characters of context on each side.
 	 * @return string Empty when nothing matched.
 	 */
-	public static function damage_sample( $content, $padding = 60 ) {
+	public static function damage_sample( $content, $padding = 60 ): string {
 		$content = (string) $content;
 
 		if ( ! preg_match( self::DAMAGE_PATTERN, $content, $match, PREG_OFFSET_CAPTURE ) ) {
@@ -618,10 +616,10 @@ class UAMS_C2S_Converter {
 		}
 
 		$updated = wp_update_post(
-			array(
+			[
 				'ID'           => $post_id,
 				'post_content' => wp_slash( $content ),
-			),
+			],
 			true
 		);
 
@@ -646,7 +644,7 @@ class UAMS_C2S_Converter {
 		$revision = $this->pre_conversion_revision( $post );
 
 		if ( $revision ) {
-			return array(
+			return [
 				'content'  => $revision->post_content,
 				'source'   => 'revision',
 				'verified' => $this->matches_backup( $post->ID, $revision->post_content ),
@@ -656,7 +654,7 @@ class UAMS_C2S_Converter {
 					$revision->ID,
 					$revision->post_date_gmt
 				),
-			);
+			];
 		}
 
 		if ( ! metadata_exists( 'post', $post->ID, self::BACKUP_META ) ) {
@@ -678,12 +676,12 @@ class UAMS_C2S_Converter {
 			);
 		}
 
-		return array(
+		return [
 			'content'  => (string) $backup,
 			'source'   => 'backup',
 			'verified' => 'exact',
 			'label'    => __( 'stored backup', 'uams-c2s' ),
-		);
+		];
 	}
 
 	/**
@@ -703,7 +701,7 @@ class UAMS_C2S_Converter {
 	 * @param string $content Candidate content.
 	 * @return string 'exact', 'mismatch', or 'unknown' when there is no backup.
 	 */
-	protected function matches_backup( $post_id, $content ) {
+	protected function matches_backup( $post_id, $content ): string {
 		if ( ! metadata_exists( 'post', $post_id, self::BACKUP_META ) ) {
 			return 'unknown';
 		}
@@ -735,7 +733,7 @@ class UAMS_C2S_Converter {
 		}
 
 		$meta = get_post_meta( $post->ID, self::CONVERTED_META, true );
-		$meta = is_array( $meta ) ? $meta : array();
+		$meta = is_array( $meta ) ? $meta : [];
 
 		if ( ! empty( $meta['source_revision'] ) ) {
 			$revision = get_post( (int) $meta['source_revision'] );
@@ -796,12 +794,8 @@ class UAMS_C2S_Converter {
 			return false;
 		}
 
-		// Never restore markup that is already mangled.
-		if ( self::looks_damaged( $revision->post_content ) ) {
-			return false;
-		}
-
-		return true;
+        // Never restore markup that is already mangled.
+        return !self::looks_damaged( $revision->post_content );
 	}
 
 	/**
@@ -810,16 +804,16 @@ class UAMS_C2S_Converter {
 	 * @param int $post_id Post ID.
 	 * @return WP_Post[]
 	 */
-	protected function revisions( $post_id ) {
+	protected function revisions( $post_id ): array {
 		$revisions = wp_get_post_revisions(
 			$post_id,
-			array(
+			[
 				'order'   => 'DESC',
 				'orderby' => 'date ID',
-			)
+			]
 		);
 
-		$out = array();
+		$out = [];
 
 		foreach ( $revisions as $revision ) {
 			if ( wp_is_post_autosave( $revision ) ) {
@@ -833,14 +827,13 @@ class UAMS_C2S_Converter {
 	}
 
 	/**
-	 * ID of a post's newest non-autosave revision, or 0 when it has none.
-	 *
-	 * @param int $post_id Post ID.
-	 * @return int
-	 */
-	protected function latest_revision_id( $post_id ) {
+     * ID of a post's newest non-autosave revision, or 0 when it has none.
+     *
+     * @param int $post_id Post ID.
+     */
+    protected function latest_revision_id( $post_id ): int {
 		$revisions = $this->revisions( $post_id );
 
-		return $revisions ? (int) $revisions[0]->ID : 0;
+		return $revisions !== [] ? (int) $revisions[0]->ID : 0;
 	}
 }

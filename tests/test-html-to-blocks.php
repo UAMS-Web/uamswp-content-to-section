@@ -21,11 +21,11 @@ require_once __DIR__ . '/stubs.php';
  * @param array  $args Conversion arguments.
  * @return array
  */
-function uams_c2s_first_block( $html, array $args = array() ) {
+function uams_c2s_first_block( $html, array $args = [] ) {
 	$parser = new UAMS_C2S_HTML_To_Blocks( $args );
 	$blocks = $parser->convert( $html );
 
-	return $blocks ? $blocks[0] : array();
+	return $blocks ? $blocks[0] : [];
 }
 
 /**
@@ -38,7 +38,7 @@ function uams_c2s_emitted_classes( $html ) {
 	$block = uams_c2s_first_block( $html );
 
 	if ( ! preg_match( '/class="([^"]*)"/', $block['innerHTML'], $m ) ) {
-		return array();
+		return [];
 	}
 
 	return explode( ' ', $m[1] );
@@ -50,7 +50,7 @@ echo "-- paragraph alignment\n";
 uams_c2s_test_is(
 	'text-center maps to the canonical class',
 	uams_c2s_emitted_classes( '<p class="text-center">x</p>' ),
-	array( 'has-text-align-center' )
+	[ 'has-text-align-center' ]
 );
 uams_c2s_test_is(
 	'text-center sets the align attribute',
@@ -62,19 +62,19 @@ uams_c2s_test_is(
 uams_c2s_test_is(
 	'has-text-align-center is not duplicated',
 	uams_c2s_emitted_classes( '<p class="has-text-align-center">x</p>' ),
-	array( 'has-text-align-center' )
+	[ 'has-text-align-center' ]
 );
 uams_c2s_test_is(
 	'conflicting alignment classes collapse to one',
 	uams_c2s_emitted_classes( '<p class="has-text-align-right text-center">x</p>' ),
-	array( 'has-text-align-right' )
+	[ 'has-text-align-right' ]
 );
 
 // Author classes survive, and land in className as well as the markup.
 uams_c2s_test_is(
 	'author classes are kept alongside the alignment',
 	uams_c2s_emitted_classes( '<p class="lead text-center">x</p>' ),
-	array( 'lead', 'has-text-align-center' )
+	[ 'lead', 'has-text-align-center' ]
 );
 uams_c2s_test_is(
 	'author classes reach className',
@@ -91,7 +91,7 @@ uams_c2s_test_is(
 uams_c2s_test_is(
 	'a plain paragraph emits no class attribute',
 	uams_c2s_emitted_classes( '<p>x</p>' ),
-	array()
+	[]
 );
 uams_c2s_test_is(
 	'a plain paragraph has no align attribute',
@@ -101,11 +101,11 @@ uams_c2s_test_is(
 uams_c2s_test_is(
 	'author-only classes emit without an alignment',
 	uams_c2s_emitted_classes( '<p class="lead">x</p>' ),
-	array( 'lead' )
+	[ 'lead' ]
 );
 
 // Whatever the input, a class attribute must never repeat a token.
-foreach ( array( 'text-center', 'has-text-align-center', 'has-text-align-right text-center', 'lead has-text-align-left', 'has-text-align-center lead extra' ) as $input ) {
+foreach ( [ 'text-center', 'has-text-align-center', 'has-text-align-right text-center', 'lead has-text-align-left', 'has-text-align-center lead extra' ] as $input ) {
 	$tokens = uams_c2s_emitted_classes( '<p class="' . $input . '">x</p>' );
 
 	uams_c2s_test_is(

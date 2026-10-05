@@ -1,4 +1,8 @@
 <?php
+use function WP_CLI\Utils\get_flag_value;
+use function WP_CLI\Utils\format_items;
+use function WP_CLI\Utils\make_progress_bar;
+
 /**
  * WP-CLI commands.
  *
@@ -44,11 +48,11 @@ class UAMS_C2S_CLI {
 	 * @param array $args       Positional arguments.
 	 * @param array $assoc_args Associative arguments.
 	 */
-	public function scan( $args, $assoc_args ) {
-		$post_type = WP_CLI\Utils\get_flag_value( $assoc_args, 'post_type', '' );
-		$format    = WP_CLI\Utils\get_flag_value( $assoc_args, 'format', 'table' );
+	public function scan( $args, $assoc_args ): void {
+		$post_type = get_flag_value( $assoc_args, 'post_type', '' );
+		$format    = get_flag_value( $assoc_args, 'format', 'table' );
 
-		$ids = UAMS_C2S_Scanner::find( array( 'post_type' => $post_type ) );
+		$ids = UAMS_C2S_Scanner::find( [ 'post_type' => $post_type ] );
 
 		if ( 'count' === $format ) {
 			WP_CLI::line( count( $ids ) );
@@ -62,28 +66,28 @@ class UAMS_C2S_CLI {
 			return;
 		}
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			WP_CLI::success( 'No UAMS Content Blocks found.' );
 
 			return;
 		}
 
-		$rows = array();
+		$rows = [];
 
 		foreach ( $ids as $id ) {
 			$summary = UAMS_C2S_Scanner::summarize( $id );
 
-			$rows[] = array(
+			$rows[] = [
 				'ID'        => $id,
 				'type'      => get_post_type( $id ),
 				'status'    => get_post_status( $id ),
 				'blocks'    => $summary['blocks'],
 				'geo'       => $summary['geo'],
 				'title'     => get_the_title( $id ),
-			);
+			];
 		}
 
-		WP_CLI\Utils\format_items( $format, $rows, array( 'ID', 'type', 'status', 'blocks', 'geo', 'title' ) );
+		format_items( $format, $rows, [ 'ID', 'type', 'status', 'blocks', 'geo', 'title' ] );
 	}
 
 	/**
@@ -135,46 +139,46 @@ class UAMS_C2S_CLI {
 	 * @param array $args       Positional arguments.
 	 * @param array $assoc_args Associative arguments.
 	 */
-	public function convert( $args, $assoc_args ) {
-		$dry_run = (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
-		$verbose = (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'verbose', false );
-		$all     = (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'all', false );
+	public function convert( $args, $assoc_args ): void {
+		$dry_run = (bool) get_flag_value( $assoc_args, 'dry-run', false );
+		$verbose = (bool) get_flag_value( $assoc_args, 'verbose', false );
+		$all     = (bool) get_flag_value( $assoc_args, 'all', false );
 
-		$options = array(
-			'include_geo'     => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'include-geo', false ),
-			'demote_headings' => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'demote-headings', false ),
-			'list_format'     => WP_CLI\Utils\get_flag_value( $assoc_args, 'list-format', 'v3' ),
-		);
+		$options = [
+			'include_geo'     => (bool) get_flag_value( $assoc_args, 'include-geo', false ),
+			'demote_headings' => (bool) get_flag_value( $assoc_args, 'demote-headings', false ),
+			'list_format'     => get_flag_value( $assoc_args, 'list-format', 'v3' ),
+		];
 
 		$ids = array_map( 'absint', $args );
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			if ( ! $all ) {
 				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
 			}
 
-			$status = WP_CLI\Utils\get_flag_value( $assoc_args, 'post_status', '' );
+			$status = get_flag_value( $assoc_args, 'post_status', '' );
 			$status = $status ? array_map( 'trim', explode( ',', $status ) ) : '';
 
 			if ( $status && ! UAMS_C2S_Scanner::narrow_statuses( $status ) ) {
 				WP_CLI::error(
 					sprintf(
 						'No scannable post status matched "%s". Choose from: %s.',
-						implode( ',', (array) $status ),
+						implode( ',', $status ),
 						implode( ', ', UAMS_C2S_Scanner::statuses() )
 					)
 				);
 			}
 
 			$ids = UAMS_C2S_Scanner::find(
-				array(
-					'post_type' => WP_CLI\Utils\get_flag_value( $assoc_args, 'post_type', '' ),
+				[
+					'post_type' => get_flag_value( $assoc_args, 'post_type', '' ),
 					'status'    => $status,
-				)
+				]
 			);
 		}
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			WP_CLI::success( 'Nothing to convert.' );
 
 			return;
@@ -182,15 +186,15 @@ class UAMS_C2S_CLI {
 
 		$converter = new UAMS_C2S_Converter( $options );
 
-		$totals = array(
+		$totals = [
 			'posts'     => 0,
 			'converted' => 0,
 			'skipped'   => 0,
 			'failed'    => 0,
-		);
+		];
 
 		$progress = ( ! $verbose && count( $ids ) > 1 )
-			? WP_CLI\Utils\make_progress_bar( $dry_run ? 'Analysing' : 'Converting', count( $ids ) )
+			? make_progress_bar( $dry_run ? 'Analysing' : 'Converting', count( $ids ) )
 			: null;
 
 		foreach ( $ids as $id ) {
@@ -271,13 +275,13 @@ class UAMS_C2S_CLI {
 	 * @param array $args       Positional arguments.
 	 * @param array $assoc_args Associative arguments.
 	 */
-	public function revert( $args, $assoc_args ) {
+	public function revert( $args, $assoc_args ): void {
 		global $wpdb;
 
 		$ids = array_map( 'absint', $args );
 
-		if ( ! $ids ) {
-			if ( ! WP_CLI\Utils\get_flag_value( $assoc_args, 'all', false ) ) {
+		if ( $ids === [] ) {
+			if ( ! get_flag_value( $assoc_args, 'all', false ) ) {
 				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
 			}
 
@@ -292,7 +296,7 @@ class UAMS_C2S_CLI {
 			);
 		}
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			WP_CLI::success( 'Nothing to revert.' );
 
 			return;
@@ -360,19 +364,19 @@ class UAMS_C2S_CLI {
 	 * @param array $args       Positional arguments.
 	 * @param array $assoc_args Associative arguments.
 	 */
-	public function repair( $args, $assoc_args ) {
-		$dry_run = (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
+	public function repair( $args, $assoc_args ): void {
+		$dry_run = (bool) get_flag_value( $assoc_args, 'dry-run', false );
 
-		$options = array(
-			'include_geo'     => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'include-geo', false ),
-			'demote_headings' => (bool) WP_CLI\Utils\get_flag_value( $assoc_args, 'demote-headings', false ),
-			'list_format'     => WP_CLI\Utils\get_flag_value( $assoc_args, 'list-format', 'v3' ),
-		);
+		$options = [
+			'include_geo'     => (bool) get_flag_value( $assoc_args, 'include-geo', false ),
+			'demote_headings' => (bool) get_flag_value( $assoc_args, 'demote-headings', false ),
+			'list_format'     => get_flag_value( $assoc_args, 'list-format', 'v3' ),
+		];
 
 		$ids = array_map( 'absint', $args );
 
-		if ( ! $ids ) {
-			if ( ! WP_CLI\Utils\get_flag_value( $assoc_args, 'all', false ) ) {
+		if ( $ids === [] ) {
+			if ( ! get_flag_value( $assoc_args, 'all', false ) ) {
 				WP_CLI::error( 'Pass one or more post IDs, or --all.' );
 			}
 
@@ -385,7 +389,7 @@ class UAMS_C2S_CLI {
 			sort( $ids );
 		}
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			WP_CLI::success( 'No damaged conversions found.' );
 
 			return;
@@ -394,32 +398,30 @@ class UAMS_C2S_CLI {
 		$converter = new UAMS_C2S_Converter( $options );
 
 		if ( $dry_run ) {
-			$rows = array();
+			$rows = [];
 
 			foreach ( $ids as $id ) {
 				$plan = $converter->repair_plan( $id );
 
-				$rows[] = array(
+				$rows[] = [
 					'ID'        => $id,
 					'title'     => get_the_title( $id ),
 					'damaged'   => $plan['damaged'] ? 'yes' : 'not visible',
 					'converted' => empty( $plan['converted'] )
 						? 'no record'
-						: sprintf( 'v%s', isset( $plan['converted']['version'] ) ? $plan['converted']['version'] : '?' ),
+						: sprintf( 'v%s', $plan['converted']['version'] ?? '?' ),
 					// A mismatch is refused by repair_post(), so the dry run has to
 					// report it as a blocker. Showing the revision it would have
 					// restored from, with an empty blocker, promised work the run
 					// will decline.
 					'restores'  => ( $plan['error'] || 'mismatch' === $plan['verified'] ) ? '' : $plan['label'],
-					'blocker'   => $plan['error']
-						? $plan['error']
-						: ( 'mismatch' === $plan['verified']
+					'blocker'   => $plan['error'] ?: ('mismatch' === $plan['verified']
 							? __( 'restore does not match the backup; compare by hand', 'uams-c2s' )
-							: '' ),
-				);
+							: ''),
+				];
 			}
 
-			WP_CLI\Utils\format_items( 'table', $rows, array( 'ID', 'title', 'damaged', 'converted', 'restores', 'blocker' ) );
+			format_items( 'table', $rows, [ 'ID', 'title', 'damaged', 'converted', 'restores', 'blocker' ] );
 
 			foreach ( $rows as $row ) {
 				if ( 'no record' === $row['converted'] && 'yes' === $row['damaged'] ) {
@@ -442,11 +444,11 @@ class UAMS_C2S_CLI {
 		$skipped  = 0;
 		$failed   = 0;
 
-		$reasons = array(
+		$reasons = [
 			'clean'         => 'is not damaged; nothing to repair',
 			'mismatch'      => 'was refused: its restore source does not match the content that was converted, so repairing would discard the difference. Compare them by hand',
 			'not_converted' => 'was restored to its pre-conversion content, but it held no Content block to convert, so it is listed for conversion again rather than repaired',
-		);
+		];
 
 		foreach ( $ids as $id ) {
 			$result = $converter->repair_post( $id, true );
@@ -460,7 +462,7 @@ class UAMS_C2S_CLI {
 			if ( empty( $result['repaired'] ) ) {
 				++$skipped;
 
-				$reason = isset( $result['reason'] ) ? $result['reason'] : 'clean';
+				$reason = $result['reason'] ?? 'clean';
 
 				// A refusal is not the same as a no-op, and 'mismatch' in
 				// particular is the one an operator has to act on.

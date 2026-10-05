@@ -35,7 +35,7 @@ require_once UAMS_C2S_DIR . 'includes/class-cli.php';
  * @return array<string,mixed>
  */
 function uams_c2s_default_args() {
-	$defaults = array(
+	$defaults = [
 		// Convert blocks that carry GeoTargetingWP rules. The Section block has no
 		// geo support, so those rules would be silently dropped -- off by default.
 		'include_geo'     => false,
@@ -45,7 +45,7 @@ function uams_c2s_default_args() {
 		'max_heading'     => 2,
 		// 'v3' = core/list + core/list-item (WP 6.0+). 'v2' = single core/list block.
 		'list_format'     => 'v3',
-	);
+	];
 
 	/**
 	 * Filters the default conversion arguments.
@@ -58,19 +58,20 @@ function uams_c2s_default_args() {
 /**
  * Load translations and boot the admin screen.
  */
-function uams_c2s_bootstrap() {
+function uams_c2s_bootstrap(): void {
 	load_plugin_textdomain( 'uams-c2s', false, dirname( plugin_basename( UAMS_C2S_FILE ) ) . '/languages' );
 
 	if ( is_admin() ) {
 		UAMS_C2S_Admin::instance()->hooks();
 	}
 }
+
 add_action( 'plugins_loaded', 'uams_c2s_bootstrap' );
 
 /**
  * Register the in-editor "Transform to UAMS Section" option.
  */
-function uams_c2s_enqueue_editor_assets() {
+function uams_c2s_enqueue_editor_assets(): void {
 	$asset = UAMS_C2S_DIR . 'assets/js/editor-transform.js';
 
 	if ( ! file_exists( $asset ) ) {
@@ -80,7 +81,7 @@ function uams_c2s_enqueue_editor_assets() {
 	wp_enqueue_script(
 		'uams-c2s-editor-transform',
 		UAMS_C2S_URL . 'assets/js/editor-transform.js',
-		array( 'wp-blocks', 'wp-block-editor', 'wp-hooks', 'wp-autop', 'wp-dom-ready' ),
+		[ 'wp-blocks', 'wp-block-editor', 'wp-hooks', 'wp-autop', 'wp-dom-ready' ],
 		UAMS_C2S_VERSION,
 		true
 	);
@@ -91,15 +92,16 @@ function uams_c2s_enqueue_editor_assets() {
 		// Every key here must have a reader in editor-transform.js. `sourceKeys`
 		// and `i18n` did not, and shipped an acf_get_fields() call plus their
 		// payload on every block-editor page load to be ignored.
-		array(
+		[
 			'sourceBlock'  => UAMS_C2S_Converter::SOURCE_BLOCK,
 			'targetBlock'  => UAMS_C2S_Converter::TARGET_BLOCK,
 			'targetKeys'   => UAMS_C2S_Field_Map::target_keys(),
 			'pairs'        => UAMS_C2S_Field_Map::pairs(),
 			'wysiwygField' => UAMS_C2S_Field_Map::wysiwyg_field(),
-		)
+		]
 	);
 }
+
 add_action( 'enqueue_block_editor_assets', 'uams_c2s_enqueue_editor_assets' );
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
