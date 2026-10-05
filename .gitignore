@@ -10,3 +10,5 @@
 /vendor/
 /node_modules/
 *.log
+/.phpunit.result.cache
+/.phpstan/
