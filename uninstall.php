@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Uninstall cleanup.
  *
@@ -13,12 +15,9 @@
  *
  *     wp post meta delete <id> _uams_c2s_backup
  *     wp post meta delete <id> _uams_c2s_converted
- *
- * @package UAMS_Content_To_Section
  */
+defined('WP_UNINSTALL_PLUGIN') || exit;
 
-defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
-
-delete_option( 'uams_c2s_options' );
-delete_transient( 'uams_c2s_batch_skipped' );
-delete_transient( 'uams_c2s_repair_skipped' );
+delete_option('uams_c2s_options');
+delete_transient('uams_c2s_batch_skipped');
+delete_transient('uams_c2s_repair_skipped');
