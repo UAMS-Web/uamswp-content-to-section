@@ -283,3 +283,13 @@ Field *keys* are a write-side concern only. The Content block is read by field
 *name*; only the Section block being written needs keys, and those are read from
 the live `group_uams_section` field group at runtime, so changing the theme's
 `$suffix` does not break the mapping. The `_b` keys are only a fallback.
+
+
+## Local CI
+
+```bash
+node .claude/skills/local-ci/local-ci.mjs --dry-run
+node .claude/skills/local-ci/local-ci.mjs --all
+```
+
+Private repositories validate with this runner rather than billed Actions minutes.
