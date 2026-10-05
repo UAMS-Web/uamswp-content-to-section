@@ -26,7 +26,7 @@ function uams_c2s_first_block($html, array $args = [])
     $parser = new UAMS_C2S_HTML_To_Blocks($args);
     $blocks = $parser->convert($html);
 
-    return $blocks ? $blocks[0] : [];
+    return $blocks !== [] ? $blocks[0] : [];
 }
 
 /**
