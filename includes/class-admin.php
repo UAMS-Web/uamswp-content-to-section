@@ -13,8 +13,11 @@ defined( 'ABSPATH' ) || exit;
 class UAMS_C2S_Admin {
 
 	const PAGE       = 'uams-c2s';
+    
 	const OPTION     = 'uams_c2s_options';
+    
 	const CAPABILITY = 'manage_options';
+    
 	const BATCH_SIZE = 10;
 
 	/**
@@ -22,7 +25,7 @@ class UAMS_C2S_Admin {
 	 *
 	 * @var self|null
 	 */
-	protected static $instance = null;
+	protected static $instance;
 
 	/**
 	 * Singleton accessor.
@@ -30,9 +33,7 @@ class UAMS_C2S_Admin {
 	 * @return self
 	 */
 	public static function instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new self();
-		}
+		self::$instance ??= new self();
 
 		return self::$instance;
 	}
@@ -40,27 +41,27 @@ class UAMS_C2S_Admin {
 	/**
 	 * Register hooks.
 	 */
-	public function hooks() {
-		add_action( 'admin_menu', array( $this, 'menu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'styles' ) );
-		add_action( 'admin_post_uams_c2s_save_options', array( $this, 'handle_save_options' ) );
-		add_action( 'admin_post_uams_c2s_convert', array( $this, 'handle_convert' ) );
-		add_action( 'admin_post_uams_c2s_revert', array( $this, 'handle_revert' ) );
-		add_action( 'admin_post_uams_c2s_repair', array( $this, 'handle_repair' ) );
-		add_action( 'admin_post_uams_c2s_repair_batch', array( $this, 'handle_repair_batch' ) );
-		add_action( 'admin_post_uams_c2s_batch', array( $this, 'handle_batch' ) );
+	public function hooks(): void {
+		add_action( 'admin_menu', [ $this, 'menu' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'styles' ] );
+		add_action( 'admin_post_uams_c2s_save_options', [ $this, 'handle_save_options' ] );
+		add_action( 'admin_post_uams_c2s_convert', [ $this, 'handle_convert' ] );
+		add_action( 'admin_post_uams_c2s_revert', [ $this, 'handle_revert' ] );
+		add_action( 'admin_post_uams_c2s_repair', [ $this, 'handle_repair' ] );
+		add_action( 'admin_post_uams_c2s_repair_batch', [ $this, 'handle_repair_batch' ] );
+		add_action( 'admin_post_uams_c2s_batch', [ $this, 'handle_batch' ] );
 	}
 
 	/**
 	 * Add the Tools submenu.
 	 */
-	public function menu() {
+	public function menu(): void {
 		add_management_page(
 			__( 'UAMS Content → Section', 'uams-c2s' ),
 			__( 'Content → Section', 'uams-c2s' ),
 			self::CAPABILITY,
 			self::PAGE,
-			array( $this, 'render' )
+			[ $this, 'render' ]
 		);
 	}
 
@@ -69,7 +70,7 @@ class UAMS_C2S_Admin {
 	 *
 	 * @param string $hook Current admin page.
 	 */
-	public function styles( $hook ) {
+	public function styles( $hook ): void {
 		if ( 'tools_page_' . self::PAGE !== $hook ) {
 			return;
 		}
@@ -77,7 +78,7 @@ class UAMS_C2S_Admin {
 		wp_enqueue_style(
 			'uams-c2s-admin',
 			UAMS_C2S_URL . 'assets/css/admin.css',
-			array(),
+			[],
 			UAMS_C2S_VERSION
 		);
 	}
@@ -92,9 +93,9 @@ class UAMS_C2S_Admin {
 	 * @return array<string,mixed>
 	 */
 	public function options() {
-		$stored = get_option( self::OPTION, array() );
+		$stored = get_option( self::OPTION, [] );
 
-		return wp_parse_args( is_array( $stored ) ? $stored : array(), uams_c2s_default_args() );
+		return wp_parse_args( is_array( $stored ) ? $stored : [], uams_c2s_default_args() );
 	}
 
 	/* ---------------------------------------------------------------------
@@ -104,7 +105,7 @@ class UAMS_C2S_Admin {
 	/**
 	 * Render the Tools screen.
 	 */
-	public function render() {
+	public function render(): void {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
 			wp_die( esc_html__( 'You do not have permission to run this conversion.', 'uams-c2s' ) );
 		}
@@ -213,13 +214,13 @@ class UAMS_C2S_Admin {
 	protected function render_damaged( array $options ) {
 		$ids = $this->repair_queue();
 
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			return;
 		}
 
 		$converter = new UAMS_C2S_Converter( $options );
 
-		$plans = array();
+		$plans = [];
 
 		foreach ( $ids as $id ) {
 			$plans[ $id ] = $converter->repair_plan( $id );
@@ -322,7 +323,7 @@ class UAMS_C2S_Admin {
 				?>
 				<tr>
 					<td>
-						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ? $title : '(' . $id . ')' ); ?></a></strong>
+						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ?: '(' . $id . ')' ); ?></a></strong>
 						<div class="row-actions">
 							<span>#<?php echo absint( $id ); ?></span>
 							| <span><?php echo esc_html( (string) get_post_status( $id ) ); ?></span>
@@ -341,7 +342,7 @@ class UAMS_C2S_Admin {
 								sprintf(
 									/* translators: 1: plugin version, 2: date. */
 									__( 'yes — v%1$s, %2$s', 'uams-c2s' ),
-									isset( $record['version'] ) ? $record['version'] : '?',
+									$record['version'] ?? '?',
 									isset( $record['time'] ) ? date_i18n( 'Y-m-d H:i', (int) $record['time'] ) : '?'
 								)
 							);
@@ -400,18 +401,18 @@ class UAMS_C2S_Admin {
 	protected function render_status() {
 		$status = UAMS_C2S_Scanner::status();
 
-		$rows = array(
-			array(
+		$rows = [
+			[
 				__( 'Posts still holding a Content block', 'uams-c2s' ),
 				$status['content'],
 				__( 'What the list below counts.', 'uams-c2s' ),
-			),
-			array(
+			],
+			[
 				__( 'Posts holding a Section block', 'uams-c2s' ),
 				$status['section'],
 				__( 'Includes Section blocks that were authored by hand, not only converted ones.', 'uams-c2s' ),
-			),
-			array(
+			],
+			[
 				__( 'Conversions recorded by this plugin', 'uams-c2s' ),
 				$status['conversions'],
 				$status['last']
@@ -423,23 +424,23 @@ class UAMS_C2S_Admin {
 						date_i18n( 'Y-m-d H:i', $status['last'] )
 					)
 					: __( 'This plugin has no record of converting anything on this site.', 'uams-c2s' ),
-			),
-			array(
+			],
+			[
 				__( 'Pre-conversion backups stored', 'uams-c2s' ),
 				$status['backups'],
 				__( 'One per converted post, until it is reverted.', 'uams-c2s' ),
-			),
-			array(
+			],
+			[
 				__( 'Posts with damaged block markup', 'uams-c2s' ),
 				$status['damaged'],
 				__( 'Block attribute escapes stored as literal text. This is what can be seen; it is a floor, not a total.', 'uams-c2s' ),
-			),
-			array(
+			],
+			[
 				__( 'Posts converted by an unslashed version', 'uams-c2s' ),
 				$status['at_risk'],
 				__( 'Written through the 1.0.0 bug whether or not damage is visible. Re-convert these from their pre-conversion revision to be certain.', 'uams-c2s' ),
-			),
-		);
+			],
+		];
 
 
 		?>
@@ -468,13 +469,12 @@ class UAMS_C2S_Admin {
 	}
 
 	/**
-	 * "5 by v1.0.0, 3 by v1.0.1", affected versions marked.
-	 *
-	 * @param array<string,int> $versions Version => conversion count.
-	 * @return string
-	 */
-	protected function version_breakdown( array $versions ) {
-		$parts = array();
+     * "5 by v1.0.0, 3 by v1.0.1", affected versions marked.
+     *
+     * @param array<string,int> $versions Version => conversion count.
+     */
+    protected function version_breakdown( array $versions ): string {
+		$parts = [];
 
 		foreach ( $versions as $version => $count ) {
 			$parts[] = sprintf(
@@ -506,23 +506,23 @@ class UAMS_C2S_Admin {
 
 		$counts = UAMS_C2S_Scanner::status_counts();
 
-		$scopes = array(
-			array(
+		$scopes = [
+			[
 				'status' => '',
 				'label'  => sprintf(
 					/* translators: %d: number of posts. */
 					__( 'Convert all %d posts', 'uams-c2s' ),
 					$total
 				),
-			),
-		);
+			],
+		];
 
 		// A single status covering everything would just repeat the all button.
 		if ( count( $counts ) > 1 ) {
 			foreach ( $counts as $status => $count ) {
 				$object = get_post_status_object( $status );
 
-				$scopes[] = array(
+				$scopes[] = [
 					'status' => $status,
 					'label'  => sprintf(
 						/* translators: 1: number of posts, 2: post status name. */
@@ -530,7 +530,7 @@ class UAMS_C2S_Admin {
 						$count,
 						strtolower( $object ? $object->label : $status )
 					),
-				);
+				];
 			}
 		}
 
@@ -583,21 +583,21 @@ class UAMS_C2S_Admin {
 			return;
 		}
 
-		$messages = array(
-			'converted'  => array( 'success', __( 'Post converted.', 'uams-c2s' ) ),
-			'nochange'   => array( 'info', __( 'Nothing to convert in that post.', 'uams-c2s' ) ),
-			'reverted'   => array( 'success', __( 'Post restored to its pre-conversion content.', 'uams-c2s' ) ),
-			'repaired'   => array( 'success', __( 'Post restored from its pre-conversion revision and converted again.', 'uams-c2s' ) ),
-			'norepair'   => array( 'info', __( 'That post is not damaged; nothing to repair.', 'uams-c2s' ) ),
+		$messages = [
+			'converted'  => [ 'success', __( 'Post converted.', 'uams-c2s' ) ],
+			'nochange'   => [ 'info', __( 'Nothing to convert in that post.', 'uams-c2s' ) ],
+			'reverted'   => [ 'success', __( 'Post restored to its pre-conversion content.', 'uams-c2s' ) ],
+			'repaired'   => [ 'success', __( 'Post restored from its pre-conversion revision and converted again.', 'uams-c2s' ) ],
+			'norepair'   => [ 'info', __( 'That post is not damaged; nothing to repair.', 'uams-c2s' ) ],
 
-			'norepair_mismatch' => array( 'warning', __( 'Nothing was changed. The revision this post would restore from does not match the content that was actually converted, so repairing it would discard the difference. Compare the two by hand before deciding.', 'uams-c2s' ) ),
-			'norepair_empty'    => array( 'warning', __( 'The pre-conversion content was restored, but it held no Content block to convert, so the post is now listed for conversion again rather than repaired. Check it before converting.', 'uams-c2s' ) ),
+			'norepair_mismatch' => [ 'warning', __( 'Nothing was changed. The revision this post would restore from does not match the content that was actually converted, so repairing it would discard the difference. Compare the two by hand before deciding.', 'uams-c2s' ) ],
+			'norepair_empty'    => [ 'warning', __( 'The pre-conversion content was restored, but it held no Content block to convert, so the post is now listed for conversion again rather than repaired. Check it before converting.', 'uams-c2s' ) ],
 
-			'repair_batch_done' => array( 'success', __( 'Re-conversion finished. Anything still listed below could not be repaired automatically — check the reason given.', 'uams-c2s' ) ),
-			'saved'      => array( 'success', __( 'Options saved.', 'uams-c2s' ) ),
-			'batch_done' => array( 'success', __( 'Batch conversion finished.', 'uams-c2s' ) ),
-			'error'      => array( 'error', __( 'The conversion failed. Check the error log.', 'uams-c2s' ) ),
-		);
+			'repair_batch_done' => [ 'success', __( 'Re-conversion finished. Anything still listed below could not be repaired automatically — check the reason given.', 'uams-c2s' ) ],
+			'saved'      => [ 'success', __( 'Options saved.', 'uams-c2s' ) ],
+			'batch_done' => [ 'success', __( 'Batch conversion finished.', 'uams-c2s' ) ],
+			'error'      => [ 'error', __( 'The conversion failed. Check the error log.', 'uams-c2s' ) ],
+		];
 
 		if ( ! isset( $messages[ $notice ] ) ) {
 			return;
@@ -617,7 +617,7 @@ class UAMS_C2S_Admin {
 	 * @param int   $preview_id Currently previewed post.
 	 */
 	protected function render_table( array $ids, $preview_id ) {
-		if ( ! $ids ) {
+		if ( $ids === [] ) {
 			printf( '<p>%s</p>', esc_html__( 'No UAMS Content Blocks remain. Nothing to do.', 'uams-c2s' ) );
 
 			return;
@@ -646,7 +646,7 @@ class UAMS_C2S_Admin {
 				?>
 				<tr<?php echo $preview_id === (int) $id ? ' class="uams-c2s-current"' : ''; ?>>
 					<td>
-						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ? $title : '(' . $id . ')' ); ?></a></strong>
+						<strong><a href="<?php echo esc_url( (string) get_edit_post_link( $id ) ); ?>"><?php echo esc_html( $title ?: '(' . $id . ')' ); ?></a></strong>
 						<div class="row-actions">
 							<span>#<?php echo absint( $id ); ?></span>
 							<?php if ( $view ) : ?>
@@ -665,7 +665,7 @@ class UAMS_C2S_Admin {
 						<?php endif; ?>
 					</td>
 					<td class="uams-c2s-actions">
-						<a class="button button-secondary" href="<?php echo esc_url( add_query_arg( array( 'page' => self::PAGE, 'preview' => $id ), admin_url( 'tools.php' ) ) ); ?>#uams-c2s-preview"><?php esc_html_e( 'Preview', 'uams-c2s' ); ?></a>
+						<a class="button button-secondary" href="<?php echo esc_url( add_query_arg( [ 'page' => self::PAGE, 'preview' => $id ], admin_url( 'tools.php' ) ) ); ?>#uams-c2s-preview"><?php esc_html_e( 'Preview', 'uams-c2s' ); ?></a>
 						<?php $this->action_button( 'uams_c2s_convert', $id, __( 'Convert', 'uams-c2s' ), 'button-primary' ); ?>
 						<?php if ( $backup ) : ?>
 							<?php $this->action_button( 'uams_c2s_revert', $id, __( 'Revert', 'uams-c2s' ), 'button-link-delete' ); ?>
@@ -689,7 +689,7 @@ class UAMS_C2S_Admin {
 	 * @param int $post_id Post ID.
 	 * @return array{url:string,label:string}|null
 	 */
-	protected function view_link( $post_id ) {
+	protected function view_link( $post_id ): ?array {
 		$post = get_post( $post_id );
 
 		if ( ! $post ) {
@@ -702,21 +702,21 @@ class UAMS_C2S_Admin {
 			return null;
 		}
 
-		if ( in_array( $post->post_status, array( 'publish', 'private' ), true ) ) {
+		if ( in_array( $post->post_status, [ 'publish', 'private' ], true ) ) {
 			$url = get_permalink( $post );
 
-			return $url ? array(
+			return $url ? [
 				'url'   => $url,
 				'label' => __( 'View on site', 'uams-c2s' ),
-			) : null;
+			] : null;
 		}
 
 		$url = get_preview_post_link( $post );
 
-		return $url ? array(
+		return $url ? [
 			'url'   => $url,
 			'label' => __( 'Preview on site', 'uams-c2s' ),
-		) : null;
+		] : null;
 	}
 
 	/**
@@ -750,7 +750,7 @@ class UAMS_C2S_Admin {
 		}
 
 		$links = paginate_links(
-			array(
+			[
 				'base'      => add_query_arg( 'paged', '%#%' ),
 				'format'    => '',
 				'current'   => $paged,
@@ -758,7 +758,7 @@ class UAMS_C2S_Admin {
 				'type'      => 'array',
 				'prev_text' => '&laquo;',
 				'next_text' => '&raquo;',
-			)
+			]
 		);
 
 		if ( ! $links ) {
@@ -846,18 +846,18 @@ class UAMS_C2S_Admin {
 	/**
 	 * Persist the conversion options.
 	 */
-	public function handle_save_options() {
+	public function handle_save_options(): void {
 		$this->authorize( 'uams_c2s_save_options' );
 
 		$list_format = isset( $_POST['list_format'] ) ? sanitize_text_field( wp_unslash( $_POST['list_format'] ) ) : 'v3';
 
 		update_option(
 			self::OPTION,
-			array(
+			[
 				'include_geo'     => ! empty( $_POST['include_geo'] ),
 				'demote_headings' => ! empty( $_POST['demote_headings'] ),
-				'list_format'     => in_array( $list_format, array( 'v2', 'v3' ), true ) ? $list_format : 'v3',
-			)
+				'list_format'     => in_array( $list_format, [ 'v2', 'v3' ], true ) ? $list_format : 'v3',
+			]
 		);
 
 		$this->redirect( 'saved' );
@@ -866,7 +866,7 @@ class UAMS_C2S_Admin {
 	/**
 	 * Convert one post.
 	 */
-	public function handle_convert() {
+	public function handle_convert(): void {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 
 		$this->authorize( 'uams_c2s_convert_' . $post_id );
@@ -885,7 +885,7 @@ class UAMS_C2S_Admin {
 	/**
 	 * Restore one post.
 	 */
-	public function handle_revert() {
+	public function handle_revert(): void {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 
 		$this->authorize( 'uams_c2s_revert_' . $post_id );
@@ -899,7 +899,7 @@ class UAMS_C2S_Admin {
 	/**
 	 * Re-run one mangled conversion.
 	 */
-	public function handle_repair() {
+	public function handle_repair(): void {
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
 
 		$this->authorize( 'uams_c2s_repair_' . $post_id );
@@ -921,21 +921,21 @@ class UAMS_C2S_Admin {
 
 		// Each refusal says something different; reporting them all as "nothing
 		// to repair" would tell an operator a mismatch was a no-op.
-		$notices = array(
+		$notices = [
 			'clean'         => 'norepair',
 			'mismatch'      => 'norepair_mismatch',
 			'not_converted' => 'norepair_empty',
-		);
+		];
 
-		$reason = isset( $result['reason'] ) ? $result['reason'] : 'clean';
+		$reason = $result['reason'] ?? 'clean';
 
-		$this->redirect( isset( $notices[ $reason ] ) ? $notices[ $reason ] : 'norepair' );
+		$this->redirect( $notices[ $reason ] ?? 'norepair' );
 	}
 
 	/**
 	 * Repair a batch of posts, then chain to the next batch.
 	 */
-	public function handle_repair_batch() {
+	public function handle_repair_batch(): void {
 		$this->authorize( 'uams_c2s_repair_batch' );
 
 		$converter = new UAMS_C2S_Converter( $this->options() );
@@ -943,7 +943,7 @@ class UAMS_C2S_Admin {
 		// Posts leave the queue as they are repaired, so always take the head of
 		// the list; failures are parked to avoid an endless loop.
 		$skipped = get_transient( 'uams_c2s_repair_skipped' );
-		$skipped = is_array( $skipped ) ? $skipped : array();
+		$skipped = is_array( $skipped ) ? $skipped : [];
 
 		foreach ( array_slice( $this->repair_queue( $skipped ), 0, self::BATCH_SIZE ) as $id ) {
 			if ( ! current_user_can( 'edit_post', $id ) ) {
@@ -965,16 +965,16 @@ class UAMS_C2S_Admin {
 
 		$remaining = $this->repair_queue( $skipped );
 
-		if ( $remaining ) {
+		if ( $remaining !== [] ) {
 			set_transient( 'uams_c2s_repair_skipped', array_values( array_unique( $skipped ) ), HOUR_IN_SECONDS );
 			$this->render_batch_progress(
 				count( $remaining ),
-				array(
+				[
 					'action'   => 'uams_c2s_repair_batch',
 					'title'    => __( 'Repairing…', 'uams-c2s' ),
 					/* translators: %d: number of posts left. */
 					'progress' => _n( '%d post left to repair…', '%d posts left to repair…', count( $remaining ), 'uams-c2s' ),
-				)
+				]
 			);
 		}
 
@@ -993,7 +993,7 @@ class UAMS_C2S_Admin {
 	 * @param int[] $skipped Post IDs to leave out.
 	 * @return int[]
 	 */
-	protected function repair_queue( array $skipped = array() ) {
+	protected function repair_queue( array $skipped = [] ): array {
 		$ids = array_merge( UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk() );
 		$ids = array_diff( array_unique( $ids ), array_map( 'absint', $skipped ) );
 
@@ -1005,7 +1005,7 @@ class UAMS_C2S_Admin {
 	/**
 	 * Convert a batch of posts, then chain to the next batch.
 	 */
-	public function handle_batch() {
+	public function handle_batch(): void {
 		$this->authorize( 'uams_c2s_batch' );
 
 		$options   = $this->options();
@@ -1022,14 +1022,14 @@ class UAMS_C2S_Admin {
 		// Posts drop out of the scan as they convert, so always take the head of
 		// the list; geo-skipped posts are excluded to avoid an endless loop.
 		$skipped = get_transient( 'uams_c2s_batch_skipped' );
-		$skipped = is_array( $skipped ) ? $skipped : array();
+		$skipped = is_array( $skipped ) ? $skipped : [];
 
 		$ids = UAMS_C2S_Scanner::find(
-			array(
+			[
 				'status'  => $scope,
 				'limit'   => self::BATCH_SIZE,
 				'exclude' => $skipped,
-			)
+			]
 		);
 
 		foreach ( $ids as $id ) {
@@ -1048,17 +1048,17 @@ class UAMS_C2S_Admin {
 		// Scoped, so a draft-only run finishes when the drafts are done rather
 		// than chaining on into the published posts it was told to leave alone.
 		$remaining = UAMS_C2S_Scanner::find(
-			array(
+			[
 				'status'  => $scope,
 				'exclude' => $skipped,
-			)
+			]
 		);
 
-		if ( $remaining ) {
+		if ( $remaining !== [] ) {
 			set_transient( 'uams_c2s_batch_skipped', array_values( array_unique( $skipped ) ), HOUR_IN_SECONDS );
 			$this->render_batch_progress(
 				count( $remaining ),
-				array( 'fields' => array( 'scope' => $scope ) )
+				[ 'fields' => [ 'scope' => $scope ] ]
 			);
 		}
 
@@ -1079,21 +1079,18 @@ class UAMS_C2S_Admin {
 	 *     @type array<string,string> $fields Hidden fields to carry into the next request.
 	 * }
 	 */
-	protected function render_batch_progress( $remaining, array $args = array() ) {
+	protected function render_batch_progress( $remaining, array $args = [] ) {
 		$args = wp_parse_args(
 			$args,
-			array(
+			[
 				'action'   => 'uams_c2s_batch',
 				'title'    => __( 'Converting…', 'uams-c2s' ),
 				'progress' => '',
-				'fields'   => array(),
-			)
+				'fields'   => [],
+			]
 		);
 
-		$progress = $args['progress']
-			? $args['progress']
-			/* translators: %d: number of posts left. */
-			: _n( '%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s' );
+		$progress = $args['progress'] ?: _n( '%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s' );
 
 		nocache_headers();
 
@@ -1160,10 +1157,10 @@ class UAMS_C2S_Admin {
 	protected function redirect( $notice ) {
 		wp_safe_redirect(
 			add_query_arg(
-				array(
+				[
 					'page'            => self::PAGE,
 					'uams_c2s_notice' => $notice,
-				),
+				],
 				admin_url( 'tools.php' )
 			)
 		);

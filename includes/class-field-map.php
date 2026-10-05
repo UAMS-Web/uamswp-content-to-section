@@ -27,18 +27,18 @@ class UAMS_C2S_Field_Map {
 	 *
 	 * @var array<string,string>
 	 */
-	protected static $fallback_target = array(
+	protected static $fallback_target = [
 		'section_heading'          => 'field_section_heading_b',
 		'section_hide_heading'     => 'field_section_hide_heading_b',
 		'section_background_color' => 'field_section_background_color_b',
-	);
+	];
 
 	/**
 	 * Runtime cache.
 	 *
 	 * @var array<string,array<string,string>>
 	 */
-	protected static $cache = array();
+	protected static $cache = [];
 
 	/**
 	 * Source field name => target field name.
@@ -53,11 +53,11 @@ class UAMS_C2S_Field_Map {
 		 */
 		return apply_filters(
 			'uams_c2s_field_pairs',
-			array(
+			[
 				'content_heading'          => 'section_heading',
 				'content_hide_heading'     => 'section_hide_heading',
 				'content_background_color' => 'section_background_color',
-			)
+			]
 		);
 	}
 
@@ -66,7 +66,7 @@ class UAMS_C2S_Field_Map {
 	 *
 	 * @return array<string,string>
 	 */
-	public static function target_keys() {
+	public static function target_keys(): array {
 		return self::keys( self::TARGET_GROUP, self::$fallback_target );
 	}
 
@@ -91,7 +91,7 @@ class UAMS_C2S_Field_Map {
 	 * @param array<string,string> $fallback Hard-coded fallback map.
 	 * @return array<string,string>
 	 */
-	protected static function keys( $group, array $fallback ) {
+	protected static function keys( $group, array $fallback ): array {
 		if ( isset( self::$cache[ $group ] ) ) {
 			return self::$cache[ $group ];
 		}

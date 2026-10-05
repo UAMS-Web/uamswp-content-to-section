@@ -25,7 +25,7 @@ class UAMS_C2S_Scanner {
 		 */
 		return apply_filters(
 			'uams_c2s_statuses',
-			array( 'publish', 'draft', 'pending', 'future', 'private' )
+			[ 'publish', 'draft', 'pending', 'future', 'private' ]
 		);
 	}
 
@@ -59,11 +59,11 @@ class UAMS_C2S_Scanner {
 	 *
 	 * @return array<string,int> Status slug => count, statuses with none omitted.
 	 */
-	public static function status_counts() {
-		$counts = array();
+	public static function status_counts(): array {
+		$counts = [];
 
 		foreach ( self::statuses() as $status ) {
-			$found = count( self::find( array( 'status' => $status ) ) );
+			$found = count( self::find( [ 'status' => $status ] ) );
 
 			if ( $found > 0 ) {
 				$counts[ $status ] = $found;
@@ -86,24 +86,24 @@ class UAMS_C2S_Scanner {
 	 * }
 	 * @return int[]
 	 */
-	public static function find( array $args = array() ) {
+	public static function find( array $args = [] ): array {
 		global $wpdb;
 
 		$args = wp_parse_args(
 			$args,
-			array(
+			[
 				'post_type' => '',
 				'status'    => '',
 				'limit'     => 0,
 				'offset'    => 0,
-				'exclude'   => array(),
-			)
+				'exclude'   => [],
+			]
 		);
 
 		$statuses = self::narrow_statuses( $args['status'] );
 
 		if ( ! $statuses ) {
-			return array();
+			return [];
 		}
 
 		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
@@ -111,7 +111,7 @@ class UAMS_C2S_Scanner {
 		$needle = '%' . $wpdb->esc_like( '<!-- wp:' . UAMS_C2S_Converter::SOURCE_BLOCK ) . '%';
 
 		$sql    = "SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
-		$params = array_merge( array( $needle ), $statuses );
+		$params = array_merge( [ $needle ], $statuses );
 
 		if ( $args['post_type'] ) {
 			$sql     .= ' AND post_type = %s';
@@ -140,19 +140,18 @@ class UAMS_C2S_Scanner {
 	}
 
 	/**
-	 * Count posts whose content contains a literal string.
-	 *
-	 * @param string $needle Substring to look for.
-	 * @return int
-	 */
-	public static function count_containing( $needle ) {
+     * Count posts whose content contains a literal string.
+     *
+     * @param string $needle Substring to look for.
+     */
+    public static function count_containing( $needle ): int {
 		global $wpdb;
 
 		$statuses     = self::statuses();
 		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 		$params = array_merge(
-			array( '%' . $wpdb->esc_like( $needle ) . '%' ),
+			[ '%' . $wpdb->esc_like( $needle ) . '%' ],
 			$statuses
 		);
 
@@ -170,7 +169,7 @@ class UAMS_C2S_Scanner {
 	 *
 	 * @return array<string,mixed>
 	 */
-	public static function status() {
+	public static function status(): array {
 		global $wpdb;
 
 		$records = $wpdb->get_col(
@@ -189,7 +188,7 @@ class UAMS_C2S_Scanner {
 
 		$last     = 0;
 		$blocks   = 0;
-		$versions = array();
+		$versions = [];
 
 		foreach ( (array) $records as $raw ) {
 			$record = maybe_unserialize( $raw );
@@ -211,7 +210,7 @@ class UAMS_C2S_Scanner {
 
 		ksort( $versions );
 
-		return array(
+		return [
 			'content'     => self::count_containing( '<!-- wp:' . UAMS_C2S_Converter::SOURCE_BLOCK ),
 			'section'     => self::count_containing( '<!-- wp:' . UAMS_C2S_Converter::TARGET_BLOCK ),
 			'conversions' => count( (array) $records ),
@@ -221,7 +220,7 @@ class UAMS_C2S_Scanner {
 			'at_risk'     => count( self::find_at_risk() ),
 			'last'        => $last,
 			'versions'    => $versions,
-		);
+		];
 	}
 
 	/**
@@ -234,7 +233,7 @@ class UAMS_C2S_Scanner {
 	 *
 	 * @return int[]
 	 */
-	public static function find_at_risk() {
+	public static function find_at_risk(): array {
 		global $wpdb;
 
 		$rows = $wpdb->get_results(
@@ -244,7 +243,7 @@ class UAMS_C2S_Scanner {
 			)
 		);
 
-		$ids = array();
+		$ids = [];
 
 		foreach ( (array) $rows as $row ) {
 			$record = maybe_unserialize( $row->meta_value );
@@ -271,16 +270,16 @@ class UAMS_C2S_Scanner {
 	 *
 	 * @return int[]
 	 */
-	public static function find_damaged() {
+	public static function find_damaged(): array {
 		global $wpdb;
 
 		$statuses     = self::statuses();
 		$status_slots = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
-		$markers = array( 'u0022', 'u0026', 'u002d', 'u003c', 'u003e' );
+		$markers = [ 'u0022', 'u0026', 'u002d', 'u003c', 'u003e' ];
 		$clauses = implode( ' OR ', array_fill( 0, count( $markers ), 'post_content LIKE %s' ) );
 
-		$params = array();
+		$params = [];
 
 		foreach ( $markers as $marker ) {
 			$params[] = '%' . $wpdb->esc_like( $marker ) . '%';
@@ -298,7 +297,7 @@ class UAMS_C2S_Scanner {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
 
-		$damaged = array();
+		$damaged = [];
 
 		foreach ( (array) $rows as $row ) {
 			if ( UAMS_C2S_Converter::looks_damaged( $row->post_content ) ) {
@@ -315,13 +314,13 @@ class UAMS_C2S_Scanner {
 	 * @param int|WP_Post $post Post.
 	 * @return array{blocks:int,geo:int}
 	 */
-	public static function summarize( $post ) {
+	public static function summarize( $post ): array {
 		$post = get_post( $post );
 
-		$summary = array(
+		$summary = [
 			'blocks' => 0,
 			'geo'    => 0,
-		);
+		];
 
 		if ( ! $post ) {
 			return $summary;
@@ -347,7 +346,7 @@ class UAMS_C2S_Scanner {
 				// conversion will actually do. Reading only `data` here meant a
 				// flat-format block with region rules reported no geo targeting
 				// and was then skipped.
-				$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+				$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : [];
 				$data  = UAMS_C2S_Converter::block_data( $attrs );
 
 				if ( ! empty( $data['content_geo'] ) && ! empty( $data['content_geo_region'] ) ) {
