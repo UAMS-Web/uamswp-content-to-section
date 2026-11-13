@@ -1,14 +1,11 @@
 * text=auto eol=lf
-/vendor/ export-ignore
-/tests/ export-ignore
-/tests-legacy/ export-ignore
-/phpunit.xml export-ignore
-/composer.json export-ignore
-/composer.lock export-ignore
-rector.php export-ignore
-rector-sweep.php export-ignore
-phpstan.neon.dist export-ignore
-phpstan-baseline.neon export-ignore
-pint.json export-ignore
-phpcs.xml.dist export-ignore
-.phpstan/ export-ignore
+
+# Keep-list: the download holds only what the plugin runs (and its license).
+/* export-ignore
+/.* export-ignore
+/includes -export-ignore
+/assets -export-ignore
+/languages -export-ignore
+/uamswp-content-to-section.php -export-ignore
+/uninstall.php -export-ignore
+/LICENSE -export-ignore
