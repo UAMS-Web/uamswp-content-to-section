@@ -28,7 +28,6 @@ require_once dirname(__DIR__).'/vendor/autoload.php';
  * True for `--testsuite=Integration` (either spelling) and for a run naming a
  * path under tests/Integration. Anything else is the Unit suite.
  *
- * @param  array  $argv
  * @return bool
  */
 function uams_c2s_tests_want_wordpress(array $argv)
