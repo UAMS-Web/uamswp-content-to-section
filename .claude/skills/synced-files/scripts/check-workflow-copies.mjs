@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 //
 // check-workflow-copies.mjs: fail when a repository's copy of a shared workflow differs
-// from the template the owning skill ships, outside the header (UAMS-Web/uams-claude-skills#155).
+// from the template the owning skill ships (UAMS-Web/uams-claude-skills#155).
 //
-// The sync delivers the templates under .claude/ and .agents/ and never writes .github/,
-// so each repository copies a workflow once, through its own reviewed pull request. Nothing
-// then keeps the two together: a hand edit to the copy, or a template change the copy never
-// received, goes unnoticed. This check is what notices.
+// The sync delivers the templates under .claude/ and .agents/ and does not create a copy
+// under .github/, so each repository copies a workflow once, through its own reviewed pull
+// request. The sync then rewrites an existing copy when its template changes
+// (UAMS-Web/uams-claude-skills#431), but a hand edit to the copy, or a copy the sync could
+// not push, goes unnoticed. This check is what notices.
 //
-// THE HEADER
-//     A copy may change the comment block between the `name:` line and the `on:` line, which
-//     is where a repository records its own notes. Every other line must match the template.
-//     Line endings are compared as LF.
+// THE WHOLE FILE
+//     The template owns every line of the copy, the comment block between the `name:` and
+//     `on:` lines included, so a header correction made in a template reaches every copy
+//     (UAMS-Web/uams-claude-skills#448). Line endings are compared as LF.
 //
 // WHICH COPIES
 //     A copy that does not exist is skipped, because a repository adopts the workflows it
@@ -20,10 +21,19 @@
 //     template this skill's own copy cannot find (a profile that does not deliver its skill)
 //     is skipped as well.
 //
+// A REUSABLE WORKFLOW IS NOT A COPY
+//     A file whose name matches a template but which declares `workflow_call` is a reusable
+//     workflow the repository defines, not a copy of the template: UAMS-Web/uams-ci-workflows
+//     defines the reusable `pr-body-checks.yml` that the caller template of the same name calls.
+//     It is skipped, and the sync leaves it alone (UAMS-Web/uams-claude-skills#718), because a
+//     sync once replaced that definition with the caller (UAMS-Web/uams-ci-workflows#34). A
+//     required file that turns out to be a definition fails, since it is not the copy required.
+//
 // EXIT CODES
-//     0  every copy that exists matches its template outside the header
+//     0  every copy that exists matches its template (also when no copy exists at all, so a
+//        repository that has adopted none of the workflows passes)
 //     1  a copy differs, or a required copy is missing; the file and first line are named
-//     2  the check could not run: a usage error, or no copy and no template was found at all
+//     2  the check could not run: a usage error, or no template is delivered here at all
 //
 // USAGE
 //     node .claude/skills/synced-files/scripts/check-workflow-copies.mjs [--root <dir>] [--require <file>]...
@@ -42,21 +52,24 @@ export const WORKFLOWS = [
     ['assign-author.yml', 'writing-pull-requests'],
     ['check-attribution-footer.yml', 'writing-pull-requests'],
     ['check-closing-keyword-across-lines.yml', 'writing-pull-requests'],
+    ['pr-body-checks.yml', 'writing-pull-requests'],
     ['clear-handed-back.yml', 'handed-back-label'],
 ]
 
+
 const asLf = (text) => text.replace(/\r\n/g, '\n')
+const LINE_BREAK = String.fromCharCode(10)
 
 /**
- * Split a workflow into its header (the lines between `name:` and `on:`, exclusive) and
- * the rest. Returns null when either marker is missing, which the caller reports.
+ * Whether a workflow file declares `workflow_call`, read from its non-comment text: a key line
+ * (`  workflow_call:`) or a flow form (`on: workflow_call`, `on: [pull_request, workflow_call]`).
+ * Comments are ignored, so a caller whose header mentions the word is still a copy.
  */
-export function splitHeader(text) {
-    const lines = asLf(text).split('\n')
-    const name = lines.findIndex((line) => /^name:/.test(line))
-    const on = lines.findIndex((line) => /^on:/.test(line))
-    if (name === -1 || on === -1 || on < name) return null
-    return { head: lines.slice(0, name + 1), header: lines.slice(name + 1, on), rest: lines.slice(on) }
+export function declaresWorkflowCall(text) {
+    return asLf(String(text))
+        .split(LINE_BREAK)
+        .map((line) => line.replace(/(^|\s)#.*$/, ''))
+        .some((line) => /(^|[\s[,{])workflow_call\s*(:|,|\]|\}|$)/.test(line))
 }
 
 /** Where a template lives, for a workflow file and its owning skill. */
@@ -71,35 +84,34 @@ export function templatePath(file, skill, skillsDir = SKILLS_DIR) {
 export function compareCopy({ root, file, skill, skillsDir = SKILLS_DIR, required = false }) {
     const template = templatePath(file, skill, skillsDir)
     const copy = join(root, '.github', 'workflows', file)
-    if (!existsSync(template)) return { status: 'skip', line: `${file}: the template ${template} is not delivered here, skipped.` }
+    if (!existsSync(template)) return { status: 'skip', reason: 'no-template', line: `${file}: the template ${template} is not delivered here, skipped.` }
     if (!existsSync(copy)) {
         return required
             ? { status: 1, line: `${copy} is missing. Copy the template to it: ${template}` }
-            : { status: 'skip', line: `${file}: no copy at .github/workflows/${file}, skipped.` }
+            : { status: 'skip', reason: 'no-copy', line: `${file}: no copy at .github/workflows/${file}, skipped.` }
     }
 
     let want
     let have
     try {
-        want = splitHeader(readFileSync(template, 'utf8'))
-        have = splitHeader(readFileSync(copy, 'utf8'))
+        want = asLf(readFileSync(template, 'utf8')).split(LINE_BREAK)
+        have = asLf(readFileSync(copy, 'utf8')).split(LINE_BREAK)
     } catch (failure) {
         return { status: 1, line: `${file}: could not be read: ${failure.message}` }
     }
-    if (want === null) return { status: 1, line: `${file}: the template ${template} has no name: and on: lines to split the header at.` }
-    if (have === null) return { status: 1, line: `${copy} has no name: line followed by an on: line, so its header cannot be told from the body. Restore it from ${template}.` }
 
-    const wantBody = [...want.head, ...want.rest]
-    const haveBody = [...have.head, ...have.rest]
+    if (declaresWorkflowCall(have.join(LINE_BREAK))) {
+        const line = `${copy} declares workflow_call, so it is this repository's own reusable workflow, not a copy of the template ${template}`
+        return required ? { status: 1, line: `${line}; a copy is required here.` } : { status: 'skip', reason: 'definition', line: `${line}; skipped.` }
+    }
+
     let index = 0
-    while (index < wantBody.length && index < haveBody.length && wantBody[index] === haveBody[index]) index += 1
-    if (index === wantBody.length && index === haveBody.length) return { status: 0, line: `${file}: matches the template outside its header.` }
+    while (index < want.length && index < have.length && want[index] === have[index]) index += 1
+    if (index === want.length && index === have.length) return { status: 0, line: `${file}: matches the template.` }
 
-    // Report the line number in the copy, not in the header-stripped body.
-    const offset = index < want.head.length ? index : index + have.header.length
     return {
         status: 1,
-        line: `${copy} differs from the template ${template} outside its header, first near line ${offset + 1}. Change the template in UAMS-Web/uams-claude-skills, under shared/, and copy it here; do not edit the copy outside its header.`,
+        line: `${copy} differs from the template ${template}, first near line ${index + 1}. Change the template in UAMS-Web/uams-claude-skills, under shared/, and copy it here; do not edit the copy.`,
     }
 }
 
@@ -113,8 +125,10 @@ export function checkCopies({ root, required = [], skillsDir = SKILLS_DIR, workf
     if (unknown.length > 0) return { status: 2, lines: [`unknown workflow in --require: ${unknown.join(', ')}. Known: ${known.join(', ')}.`] }
 
     const results = workflows.map(([file, skill]) => compareCopy({ root, file, skill, skillsDir, required: required.includes(file) }))
-    if (results.every((result) => result.status === 'skip')) {
-        return { status: 2, lines: ['workflow copy check cannot run: no template was found and no copy exists.', ...results.map((result) => result.line)] }
+    // Every template missing means the check has nothing to compare against, so it cannot run. A
+    // template present with no copy is a repository that has adopted none of the workflows: clean.
+    if (results.every((result) => result.reason === 'no-template')) {
+        return { status: 2, lines: ['workflow copy check cannot run: no template is delivered here.', ...results.map((result) => result.line)] }
     }
     return { status: results.some((result) => result.status === 1) ? 1 : 0, lines: results.map((result) => result.line) }
 }

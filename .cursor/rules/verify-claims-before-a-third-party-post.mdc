@@ -13,7 +13,7 @@ alwaysApply: true
 
 ## Why this is a standing order
 
-**An upstream post cannot be corrected the way an internal artifact can.** It lands on a public tracker under a maintainer's identity, and the maintainer acts on it: reproducing, triaging, merging. A wrong version, line number or reproduction output costs their time and the report's credibility, and an edit afterwards does not reach anyone who already read the original.
+**An upstream post cannot be corrected the way an internal artifact can.** It lands on a public tracker under a maintainer's identity, and the maintainer acts on it: reproducing it, prioritizing it, merging a fix. A wrong version, line number or reproduction output costs their time and the report's credibility, and an edit afterwards does not reach anyone who already read the original.
 
 **The draft is built from the author's own instruments**, the case [`adversarial-review`](adversarial-review.mdc) and [`an-empty-result-is-not-evidence`](an-empty-result-is-not-evidence.mdc) are written against: the probe and the material share an author, so a second pass by the same method reproduces the same blind spot. Hence the independence requirement, not just a count.
 
@@ -43,7 +43,7 @@ alwaysApply: true
 ## What this does not cover
 
 - **Posts to repositories the organization owns.** Those are corrected in place, and [`adversarial-review`](adversarial-review.mdc) and [`pre-merge-check`](pre-merge-check.mdc) govern them.
-- **When the checks fall in a chain.** The lifecycle of a vendor patch, and the point at which these checks run in its tickets, belongs to the `upstream-patch-lifecycle` skill where a repository carries it. This rule owns the requirement and the skill owns only the timing.
+- **When the checks fall in a chain.** The lifecycle of a vendor patch belongs to the `upstream-patch-lifecycle` skill, and the point at which these checks run in its tickets to the `patch-package` skill, where a repository carries each. This rule owns the requirement and the skills own only the timing.
 
 ## The DRY line
 
