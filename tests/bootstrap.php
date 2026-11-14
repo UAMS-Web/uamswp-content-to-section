@@ -30,16 +30,16 @@ if (! defined('ABSPATH')) {
 }
 
 /*
- * Load the files that DEFINE classes, never the main plugin file: it registers
- * hooks at file scope, and Brain Monkey's add_action() and add_filter() exist
- * only inside a test. Hook registration is tested in the Integration suite.
- * The plugin's classes are not Composer-autoloaded, so each file a Unit test
- * needs is required here.
+ * Load the main plugin file, and through it every class file.
+ *
+ * The plugin's classes are not Composer-autoloaded: the main file requires each
+ * one, so loading it is the only way to get them, and it is the same chain
+ * WordPress runs. The main file registers hooks at file scope, so
+ * Support/load-main-file.php captures the registrations as they happen (Brain
+ * Monkey forgets them after each test). Nothing else requires a class file, so a
+ * dropped require in the main file leaves a class missing and a test red.
  */
 require_once __DIR__.'/Support/wp-stubs.php';
-require_once __DIR__.'/../includes/class-field-map.php';
-require_once __DIR__.'/../includes/class-html-to-blocks.php';
-require_once __DIR__.'/../includes/class-converter.php';
-require_once __DIR__.'/../includes/class-scanner.php';
+require_once __DIR__.'/Support/load-main-file.php';
 
 // cspell:ignore ABSPATH autoloaded
