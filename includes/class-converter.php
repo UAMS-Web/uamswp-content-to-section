@@ -11,6 +11,9 @@ defined('ABSPATH') || exit;
 
 /**
  * Turns acf/uams-content blocks into acf/uams-section blocks.
+ *
+ * @phpstan-type Block array<string,mixed>
+ * @phpstan-type Stats array<string,mixed>
  */
 class UAMS_C2S_Converter
 {
@@ -99,9 +102,9 @@ class UAMS_C2S_Converter
     /**
      * Recursively convert a parsed block tree.
      *
-     * @param  array[]  $blocks  Parsed blocks.
-     * @param  array  $stats  Running stats, by reference.
-     * @return array[]
+     * @param  Block[]  $blocks  Parsed blocks.
+     * @param  Stats  $stats  Running stats, by reference.
+     * @return Block[]
      */
     protected function walk(array $blocks, array &$stats): array
     {
@@ -131,9 +134,9 @@ class UAMS_C2S_Converter
     /**
      * Convert one Content block.
      *
-     * @param  array  $block  Parsed block.
-     * @param  array  $stats  Running stats, by reference.
-     * @return array|null Null when the block was intentionally left alone.
+     * @param  Block  $block  Parsed block.
+     * @param  Stats  $stats  Running stats, by reference.
+     * @return Block|null Null when the block was intentionally left alone.
      */
     public function convert_block(array $block, array &$stats): ?array
     {
@@ -246,6 +249,7 @@ class UAMS_C2S_Converter
      * Build the innerContent array core would produce for N inner blocks.
      *
      * @param  int  $count  Inner block count.
+     * @return list<string|null>
      */
     protected function inner_content_padding($count): array
     {
@@ -275,7 +279,7 @@ class UAMS_C2S_Converter
      * shaped otherwise now reads as empty -- and convert_block() reports it
      * rather than quietly writing a Section with no heading.
      *
-     * @param  array  $attrs  Block attributes.
+     * @param  array<string,mixed>  $attrs  Block attributes.
      * @return array<string,mixed>
      */
     public static function block_data(array $attrs): array
@@ -290,6 +294,7 @@ class UAMS_C2S_Converter
      * Convert a post without saving.
      *
      * @param  int|WP_Post  $post  Post.
+     * @return array<string,mixed>|WP_Error
      */
     public function preview_post($post): WP_Error|array
     {
@@ -310,7 +315,7 @@ class UAMS_C2S_Converter
      * Convert a post and save it.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array|WP_Error
+     * @return array<string,mixed>|WP_Error
      */
     public function convert_post($post)
     {
@@ -407,7 +412,7 @@ class UAMS_C2S_Converter
      * @param  int|WP_Post  $post  Post.
      * @param  bool  $force  Repair even when no damage is visible, for posts
      *                       an affected version converted.
-     * @return array|WP_Error
+     * @return array<string,mixed>|WP_Error
      */
     public function repair_post($post, $force = false)
     {
@@ -496,7 +501,7 @@ class UAMS_C2S_Converter
      * the conversion.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array{post_id:int,damaged:bool,at_risk:bool,source:string,label:string,verified:string,error:string,sample:string,converted:array}
+     * @return array{post_id:int,damaged:bool,at_risk:bool,source:string,label:string,verified:string,error:string,sample:string,converted:array<string,mixed>}
      */
     public function repair_plan($post): array
     {

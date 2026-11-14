@@ -15,6 +15,8 @@ defined('ABSPATH') || exit;
 
 /**
  * Rich text to Gutenberg blocks.
+ *
+ * @phpstan-type Block array<string,mixed>
  */
 class UAMS_C2S_HTML_To_Blocks
 {
@@ -56,7 +58,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Convert WYSIWYG HTML into blocks.
      *
      * @param  string  $html  Raw ACF WYSIWYG value.
-     * @return array[] Parsed-block arrays.
+     * @return Block[] Parsed-block arrays.
      */
     public function convert($html): array
     {
@@ -142,7 +144,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Convert every child of a node.
      *
      * @param  DOMNode  $parent  Parent node.
-     * @return array[]
+     * @return Block[]
      */
     protected function children_to_blocks(DOMNode $parent): array
     {
@@ -161,7 +163,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Convert a single node.
      *
      * @param  DOMNode  $node  Node.
-     * @return array[]
+     * @return Block[]
      */
     protected function node_to_blocks(DOMNode $node): array
     {
@@ -266,7 +268,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Convert a bare text node.
      *
      * @param  DOMNode  $node  Text node.
-     * @return array[]
+     * @return Block[]
      */
     protected function text_to_blocks(DOMNode $node): array
     {
@@ -291,7 +293,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Paragraph, or the richer block a paragraph is really standing in for.
      *
      * @param  DOMElement  $node  Paragraph element.
-     * @return array[]
+     * @return Block[]
      */
     protected function paragraph(DOMElement $node): array
     {
@@ -414,7 +416,7 @@ class UAMS_C2S_HTML_To_Blocks
      *
      * @param  DOMElement  $node  Heading element.
      * @param  int  $level  Heading level from the tag name.
-     * @return array[]
+     * @return Block[]
      */
     protected function heading(DOMElement $node, $level): array
     {
@@ -478,6 +480,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Ordered or unordered list.
      *
      * @param  DOMElement  $node  List element.
+     * @return Block
      */
     protected function list_block(DOMElement $node): array
     {
@@ -523,6 +526,7 @@ class UAMS_C2S_HTML_To_Blocks
      * A single list item, splitting out any nested list.
      *
      * @param  DOMElement  $node  List item element.
+     * @return Block
      */
     protected function list_item(DOMElement $node): array
     {
@@ -563,6 +567,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Blockquote.
      *
      * @param  DOMElement  $node  Blockquote element.
+     * @return Block
      */
     protected function quote(DOMElement $node): array
     {
@@ -636,6 +641,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Table.
      *
      * @param  DOMElement  $node  Table element.
+     * @return Block
      */
     protected function table(DOMElement $node): array
     {
@@ -653,7 +659,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Figure element -- image, embed, or opaque markup.
      *
      * @param  DOMElement  $node  Figure element.
-     * @return array[]
+     * @return Block[]
      */
     protected function figure(DOMElement $node): array
     {
@@ -699,6 +705,7 @@ class UAMS_C2S_HTML_To_Blocks
      * @param  string|null  $link  Optional link href.
      * @param  string  $caption  Optional caption HTML.
      * @param  string[]  $figure_classes  Classes taken from a wrapping <figure>.
+     * @return Block
      */
     protected function image_block(DOMElement $img, $link = null, $caption = '', array $figure_classes = []): array
     {
@@ -792,6 +799,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Iframe -- promoted to an embed when the provider is recognised.
      *
      * @param  DOMElement  $node  Iframe element.
+     * @return Block
      */
     protected function iframe(DOMElement $node): array
     {
@@ -809,6 +817,8 @@ class UAMS_C2S_HTML_To_Blocks
 
     /**
      * Horizontal rule.
+     *
+     * @return Block
      */
     protected function separator(): array
     {
@@ -823,6 +833,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Preformatted text or code.
      *
      * @param  DOMElement  $node  Pre element.
+     * @return Block
      */
     protected function preformatted(DOMElement $node): array
     {
@@ -853,6 +864,7 @@ class UAMS_C2S_HTML_To_Blocks
      * @param  array<string,mixed>  $attrs  Block attributes.
      * @param  string  $html  Saved markup.
      * @param  bool  $pad  Wrap the markup in newlines, as core does.
+     * @return Block
      */
     protected function block($name, array $attrs, $html, $pad = true): array
     {
@@ -873,6 +885,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Custom HTML block.
      *
      * @param  string  $html  Markup.
+     * @return Block
      */
     protected function html_block($html): array
     {
@@ -883,6 +896,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Shortcode block.
      *
      * @param  string  $text  Shortcode text.
+     * @return Block
      */
     protected function shortcode_block($text): array
     {
@@ -893,6 +907,7 @@ class UAMS_C2S_HTML_To_Blocks
      * Embed block for a URL.
      *
      * @param  string  $url  URL.
+     * @return Block
      */
     protected function embed_block($url): array
     {
@@ -1168,7 +1183,7 @@ class UAMS_C2S_HTML_To_Blocks
      *
      * @param  string  $message  Message.
      */
-    protected function note($message)
+    protected function note($message): void
     {
         $this->notices[] = $message;
     }

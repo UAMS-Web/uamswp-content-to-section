@@ -53,8 +53,8 @@ class UAMS_C2S_CLI
      *     wp uams-c2s scan
      *     wp uams-c2s scan --post_type=page --format=ids
      *
-     * @param  array  $args  Positional arguments.
-     * @param  array  $assoc_args  Associative arguments.
+     * @param  list<string>  $args  Positional arguments.
+     * @param  array<string,mixed>  $assoc_args  Associative arguments.
      */
     public function scan($args, array $assoc_args): void
     {
@@ -145,8 +145,8 @@ class UAMS_C2S_CLI
      *     wp uams-c2s convert --all --post_status=draft
      *     wp uams-c2s convert --all --include-geo --demote-headings
      *
-     * @param  array  $args  Positional arguments.
-     * @param  array  $assoc_args  Associative arguments.
+     * @param  list<string>  $args  Positional arguments.
+     * @param  array<string,mixed>  $assoc_args  Associative arguments.
      */
     public function convert($args, array $assoc_args): void
     {
@@ -283,8 +283,8 @@ class UAMS_C2S_CLI
      *     wp uams-c2s revert 42
      *     wp uams-c2s revert --all
      *
-     * @param  array  $args  Positional arguments.
-     * @param  array  $assoc_args  Associative arguments.
+     * @param  list<string>  $args  Positional arguments.
+     * @param  array<string,mixed>  $assoc_args  Associative arguments.
      */
     public function revert($args, $assoc_args): void
     {
@@ -374,8 +374,8 @@ class UAMS_C2S_CLI
      *     wp uams-c2s repair --all
      *     wp uams-c2s repair 42
      *
-     * @param  array  $args  Positional arguments.
-     * @param  array  $assoc_args  Associative arguments.
+     * @param  list<string>  $args  Positional arguments.
+     * @param  array<string,mixed>  $assoc_args  Associative arguments.
      */
     public function repair($args, $assoc_args): void
     {
