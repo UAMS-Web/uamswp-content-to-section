@@ -853,7 +853,7 @@ class UAMS_C2S_Converter
         $out = [];
 
         foreach ($revisions as $revision) {
-            if (wp_is_post_autosave($revision)) {
+            if (! $revision instanceof WP_Post || wp_is_post_autosave($revision)) {
                 continue;
             }
 

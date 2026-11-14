@@ -994,7 +994,7 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function outer_html(DOMNode $node): string
     {
-        return $node->ownerDocument->saveHTML($node);
+        return (string) $node->ownerDocument->saveHTML($node);
     }
 
     /**
@@ -1050,7 +1050,7 @@ class UAMS_C2S_HTML_To_Blocks
             return [];
         }
 
-        return array_values(array_filter(preg_split('/\s+/', $node->getAttribute('class'))));
+        return array_values(array_filter(preg_split('/\s+/', $node->getAttribute('class')) ?: []));
     }
 
     /**
