@@ -8,8 +8,9 @@
 
 declare(strict_types=1);
 
-use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
+
+use function Brain\Monkey\Filters\expectApplied;
 
 covers(UAMS_C2S_Field_Map::class);
 
@@ -42,7 +43,7 @@ it('maps each Content field name to its Section field name', function (): void {
 });
 
 it('lets a filter replace the pairs', function (): void {
-    Filters\expectApplied('uams_c2s_field_pairs')
+    expectApplied('uams_c2s_field_pairs')
         ->once()
         ->andReturn(['a' => 'b']);
 
@@ -54,7 +55,7 @@ it('names content_content as the WYSIWYG field', function (): void {
 });
 
 it('lets a filter rename the WYSIWYG field', function (): void {
-    Filters\expectApplied('uams_c2s_wysiwyg_field')
+    expectApplied('uams_c2s_wysiwyg_field')
         ->once()
         ->andReturn('body');
 
