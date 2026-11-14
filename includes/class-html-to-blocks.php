@@ -347,7 +347,10 @@ class UAMS_C2S_HTML_To_Blocks
             }
         }
 
-        if (count($only) === 1 && $only[0]->nodeType === XML_ELEMENT_NODE) {
+        // A text node never matches a tag below, so the element check only narrows the
+        // type for the analyzer (getAttribute() is a DOMElement method).
+        // @pest-mutate-ignore: InstanceOfToTrue
+        if (count($only) === 1 && $only[0] instanceof DOMElement) {
             $child_tag = $only[0]->nodeName;
 
             if ($child_tag === 'img') {
