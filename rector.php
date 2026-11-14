@@ -118,11 +118,18 @@ return RectorConfig::configure()
         __DIR__.'/includes',
         __DIR__.'/uamswp-content-to-section.php',
         __DIR__.'/uninstall.php',
+        // `tests-legacy/` is not listed: its stubs declare WordPress functions with fewer
+        // parameters than core's, and Rector reads them as the real signatures (it stripped
+        // `$post_id` from `current_user_can('edit_post', $id)` in `includes/`). The directory
+        // retires with the Pest migration.
+        __DIR__.'/tests',
     ])
     // WordPress plugins: also analyze the PHP files at the repository root (the
     // plugin header file). Uncomment for those.
     ->withRootFiles()
     ->withSkip([
+        // The Integration suite's own Composer install (PHPUnit 9.6, wp-phpunit): not ours.
+        __DIR__.'/tests/Integration/vendor',
         ...$neverRules,
         ...($isSweepProfile ? [] : $sweepOnlyRules),
     ])
@@ -141,8 +148,8 @@ return RectorConfig::configure()
     // parse: a rule that needs a newer PHP than this is skipped. Rector's own
     // order of precedence for that check is this call, then composer.json's
     // `php` require, then `config.platform.php`, then the running PHP.
-    // Constants: PhpVersion::PHP_74, PHP_80, PHP_81, PHP_82, PHP_83, PHP_84.
-    ->withPhpVersion(PhpVersion::PHP_74)
+    // Constants: PhpVersion::PHP_82, PHP_80, PHP_81, PHP_82, PHP_83, PHP_84.
+    ->withPhpVersion(PhpVersion::PHP_82)
     // Every PHP upgrade set up to the floor, and no further. With no argument
     // this reads the floor from composer.json's `require.php` (then
     // `config.platform.php`), NOT from withPhpVersion() above, and fails the

@@ -1015,7 +1015,7 @@ class UAMS_C2S_Admin
     protected function repair_queue(array $skipped = []): array
     {
         $ids = array_merge(UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk());
-        $ids = array_diff(array_unique($ids), array_map('absint', $skipped));
+        $ids = array_diff(array_unique($ids), array_map(absint(...), $skipped));
 
         sort($ids);
 
@@ -1179,7 +1179,7 @@ class UAMS_C2S_Admin
      *
      * @param  string  $notice  Notice slug.
      */
-    protected function redirect($notice)
+    protected function redirect($notice): never
     {
         wp_safe_redirect(
             add_query_arg(

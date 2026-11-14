@@ -46,7 +46,7 @@ class UAMS_C2S_Scanner
             return $statuses;
         }
 
-        $requested = array_map('sanitize_key', (array) $status);
+        $requested = array_map(sanitize_key(...), (array) $status);
 
         return array_values(array_intersect($statuses, $requested));
     }
@@ -123,7 +123,7 @@ class UAMS_C2S_Scanner
         }
 
         if (! empty($args['exclude'])) {
-            $exclude = array_map('absint', (array) $args['exclude']);
+            $exclude = array_map(absint(...), (array) $args['exclude']);
             $exclude_slots = implode(', ', array_fill(0, count($exclude), '%d'));
             $sql .= " AND ID NOT IN ( {$exclude_slots} )";
             $params = array_merge($params, $exclude);
@@ -140,7 +140,7 @@ class UAMS_C2S_Scanner
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
 
-        return array_map('absint', (array) $ids);
+        return array_map(absint(...), (array) $ids);
     }
 
     /**
