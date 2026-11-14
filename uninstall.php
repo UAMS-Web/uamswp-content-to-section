@@ -16,6 +16,10 @@ declare(strict_types=1);
  *     wp post meta delete <id> _uams_c2s_backup
  *     wp post meta delete <id> _uams_c2s_converted
  */
+// The guard line reads as uncovered whichever way a test loads the file. With the
+// constant defined, `&&` would take the `exit` branch and stop the whole run, which
+// applied by hand it does (no test summary prints), so no test can fail on it.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('WP_UNINSTALL_PLUGIN') || exit;
 
 delete_option('uams_c2s_options');

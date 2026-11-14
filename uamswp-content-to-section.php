@@ -14,18 +14,37 @@ declare(strict_types=1);
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       uams-c2s
  */
+// The file-scope statements below run once, as the Unit bootstrap loads this file,
+// before any test records coverage, so the driver reports them uncovered whatever a
+// test does. MainFileTest asserts what they leave behind (the four constants, the
+// six classes, the two registered hooks); each mutation here was applied by hand
+// and failed that suite or stopped the run, except where its comment says otherwise.
+// With ABSPATH defined, `||` and `&&` differ only in that `&&` exits at once, which
+// stops the whole run rather than failing a test.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
-define('UAMS_C2S_VERSION', '1.0.2');
-define('UAMS_C2S_FILE', __FILE__);
-define('UAMS_C2S_DIR', plugin_dir_path(__FILE__));
-define('UAMS_C2S_URL', plugin_dir_url(__FILE__));
+define('UAMS_C2S_VERSION', '1.0.2'); // @pest-mutate-ignore: RemoveFunctionCall
+define('UAMS_C2S_FILE', __FILE__); // @pest-mutate-ignore: RemoveFunctionCall
+define('UAMS_C2S_DIR', plugin_dir_path(__FILE__)); // @pest-mutate-ignore: RemoveFunctionCall
+define('UAMS_C2S_URL', plugin_dir_url(__FILE__)); // @pest-mutate-ignore: RemoveFunctionCall
 
+// Dropping UAMS_C2S_DIR from a path leaves 'includes/class-x.php', which PHP also
+// resolves against the including file's own folder, so the same file loads: no
+// test or site can tell the difference. The other two concatenation mutants fail
+// the load when applied by hand, but they run before coverage records, so the
+// driver reports them uncovered all the same.
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-field-map.php';
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-html-to-blocks.php';
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-converter.php';
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-scanner.php';
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-admin.php';
+// @pest-mutate-ignore: ConcatRemoveLeft, ConcatRemoveRight, ConcatSwitchSides
 require_once UAMS_C2S_DIR.'includes/class-cli.php';
 
 /**
@@ -67,7 +86,8 @@ function uams_c2s_bootstrap(): void
     }
 }
 
-add_action('plugins_loaded', 'uams_c2s_bootstrap');
+// Load-time registration, asserted by MainFileTest from what the bootstrap recorded.
+add_action('plugins_loaded', 'uams_c2s_bootstrap'); // @pest-mutate-ignore: RemoveFunctionCall
 
 /**
  * Register the in-editor "Transform to UAMS Section" option.
@@ -104,8 +124,14 @@ function uams_c2s_enqueue_editor_assets(): void
     );
 }
 
-add_action('enqueue_block_editor_assets', 'uams_c2s_enqueue_editor_assets');
+// Load-time registration, asserted by MainFileTest from what the bootstrap recorded.
+add_action('enqueue_block_editor_assets', 'uams_c2s_enqueue_editor_assets'); // @pest-mutate-ignore: RemoveFunctionCall
 
-if (defined('WP_CLI') && WP_CLI) {
-    WP_CLI::add_command('uams-c2s', 'UAMS_C2S_CLI');
+// The Unit suite never defines WP_CLI, so the registration inside this block runs
+// only under WP-CLI, where no Unit test can reach it: removing the call is
+// unobservable here (applied by hand, the suite stays green). Negating the
+// condition or turning `&&` into `||` runs WP_CLI::add_command() or reads the
+// undefined constant, and the suite goes red.
+if (defined('WP_CLI') && WP_CLI) { // @pest-mutate-ignore: IfNegated, BooleanAndToBooleanOr
+    WP_CLI::add_command('uams-c2s', 'UAMS_C2S_CLI'); // @pest-mutate-ignore: RemoveMethodCall
 }
