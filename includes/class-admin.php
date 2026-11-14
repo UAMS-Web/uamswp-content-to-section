@@ -2,6 +2,10 @@
 /**
  * Tools screen: scan, preview, convert, revert.
  */
+// Runs at load, before any test records coverage, so the driver reports it
+// uncovered whatever a test does. With ABSPATH defined, `&&` for `||` exits at
+// once, which stops the whole run rather than failing a test.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
 /**
@@ -15,6 +19,10 @@ class UAMS_C2S_Admin
 
     const CAPABILITY = 'manage_options';
 
+    // Evaluated when the class is declared, before any test records coverage, so
+    // the driver reports a change here uncovered. Every batch test counts the posts
+    // one batch takes, and each fails when this is not 10.
+    // @pest-mutate-ignore: IncrementInteger, DecrementInteger
     const BATCH_SIZE = 10;
 
     /**
@@ -118,13 +126,15 @@ class UAMS_C2S_Admin
 
         // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only view state.
         $preview_id = isset($_GET['preview']) ? absint($_GET['preview']) : 0;
+        // A made-up default names no message, so render_notice() prints nothing either way.
+        // @pest-mutate-ignore: EmptyStringToNotEmpty
         $notice = isset($_GET['uams_c2s_notice']) ? sanitize_text_field(wp_unslash($_GET['uams_c2s_notice'])) : '';
         $paged = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         $per_page = 25;
         $total = count($ids);
-        $pages = (int) max(1, ceil($total / $per_page));
+        $pages = (int) ceil($total / $per_page);
         $paged = min($paged, $pages);
         $page_ids = array_slice($ids, ($paged - 1) * $per_page, $per_page);
 
@@ -230,12 +240,12 @@ class UAMS_C2S_Admin
             $plans[$id] = $converter->repair_plan($id);
         }
 
-        $ours = 0;
+        $ours = false;
         $visible = 0;
 
         foreach ($plans as $plan) {
             if (! empty($plan['converted'])) {
-                $ours++;
+                $ours = true;
             }
 
             if ($plan['damaged']) {
@@ -587,10 +597,6 @@ class UAMS_C2S_Admin
      */
     protected function render_notice($notice)
     {
-        if (! $notice) {
-            return;
-        }
-
         $messages = [
             'converted' => ['success', __('Post converted.', 'uams-c2s')],
             'nochange' => ['info', __('Nothing to convert in that post.', 'uams-c2s')],
@@ -870,7 +876,7 @@ class UAMS_C2S_Admin
             [
                 'include_geo' => ! empty($_POST['include_geo']),
                 'demote_headings' => ! empty($_POST['demote_headings']),
-                'list_format' => in_array($list_format, ['v2', 'v3'], true) ? $list_format : 'v3',
+                'list_format' => $list_format === 'v2' ? 'v2' : 'v3',
             ]
         );
 
@@ -939,14 +945,16 @@ class UAMS_C2S_Admin
         // Each refusal says something different; reporting them all as "nothing
         // to repair" would tell an operator a mismatch was a no-op.
         $notices = [
-            'clean' => 'norepair',
             'mismatch' => 'norepair_mismatch',
             'not_converted' => 'norepair_empty',
         ];
 
-        $reason = $result['reason'] ?? 'clean';
+        if (isset($result['reason'], $notices[$result['reason']])) {
+            $this->redirect($notices[$result['reason']]);
+        }
 
-        $this->redirect($notices[$reason] ?? 'norepair');
+        // 'clean', or a reason this screen has no wording for.
+        $this->redirect('norepair');
     }
 
     /**
@@ -1015,11 +1023,12 @@ class UAMS_C2S_Admin
     protected function repair_queue(array $skipped = []): array
     {
         $ids = array_merge(UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk());
-        $ids = array_diff(array_unique($ids), array_map(absint(...), $skipped));
+        $ids = array_diff(array_unique($ids), $skipped);
 
+        // sort() renumbers the keys that array_diff() and array_unique() leave gappy.
         sort($ids);
 
-        return array_values($ids);
+        return $ids;
     }
 
     /**
@@ -1101,7 +1110,24 @@ class UAMS_C2S_Admin
      * @type array<string,string> $fields Hidden fields to carry into the next request.
      *                            }
      */
-    protected function render_batch_progress($remaining, array $args = [])
+    protected function render_batch_progress($remaining, array $args = []): never
+    {
+        $html = $this->batch_progress_markup($remaining, $args);
+
+        nocache_headers();
+
+        echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every part is escaped where it is built.
+
+        exit;
+    }
+
+    /**
+     * The interstitial's markup, with every dynamic part already escaped.
+     *
+     * @param  int  $remaining  Posts still to process.
+     * @param  array  $args  Same shape as render_batch_progress().
+     */
+    protected function batch_progress_markup($remaining, array $args): string
     {
         $args = wp_parse_args(
             $args,
@@ -1115,14 +1141,6 @@ class UAMS_C2S_Admin
 
         $progress = $args['progress'] ?: _n('%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s');
 
-        nocache_headers();
-
-        echo '<!doctype html><html><head><meta charset="utf-8">';
-        echo '<title>'.esc_html($args['title']).'</title>';
-        echo '</head><body style="font:14px -apple-system,system-ui,sans-serif;padding:3rem;text-align:center">';
-
-        printf('<p>%s</p>', esc_html(sprintf($progress, $remaining)));
-
         $hidden = '';
 
         foreach ($args['fields'] as $name => $value) {
@@ -1133,19 +1151,20 @@ class UAMS_C2S_Admin
             );
         }
 
-        printf(
-            '<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="%2$s" />%3$s%4$s<button type="submit">%5$s</button></form>',
-            esc_url(admin_url('admin-post.php')),
-            esc_attr($args['action']),
-            $hidden, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_attr above.
-            wp_nonce_field($args['action'], '_wpnonce', true, false),
-            esc_html__('Continue', 'uams-c2s')
-        );
-
-        echo '<script>document.getElementById("uams-c2s-continue").submit();</script>';
-        echo '</body></html>';
-
-        exit;
+        return '<!doctype html><html><head><meta charset="utf-8">'
+            .'<title>'.esc_html($args['title']).'</title>'
+            .'</head><body style="font:14px -apple-system,system-ui,sans-serif;padding:3rem;text-align:center">'
+            .sprintf('<p>%s</p>', esc_html(sprintf($progress, $remaining)))
+            .sprintf(
+                '<form id="uams-c2s-continue" method="post" action="%1$s"><input type="hidden" name="action" value="%2$s" />%3$s%4$s<button type="submit">%5$s</button></form>',
+                esc_url(admin_url('admin-post.php')),
+                esc_attr($args['action']),
+                $hidden,
+                wp_nonce_field($args['action'], '_wpnonce', true, false),
+                esc_html__('Continue', 'uams-c2s')
+            )
+            .'<script>document.getElementById("uams-c2s-continue").submit();</script>'
+            .'</body></html>';
     }
 
     /**
