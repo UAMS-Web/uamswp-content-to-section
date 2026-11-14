@@ -653,8 +653,7 @@ class UAMS_C2S_Admin
 			<tbody>
 			<?php foreach ($ids as $id) { ?>
 				<?php
-                $post = get_post($id);
-			    $summary = UAMS_C2S_Scanner::summarize($post);
+                $summary = UAMS_C2S_Scanner::summarize($id);
 			    $backup = metadata_exists('post', $id, UAMS_C2S_Converter::BACKUP_META);
 			    $title = get_the_title($id);
 			    $view = $this->view_link($id);

@@ -335,25 +335,25 @@ class UAMS_C2S_Converter
         // Note the newest revision before the update so a later revert knows
         // exactly which one holds the pre-conversion content, rather than having
         // to guess from timestamps.
-        $source_revision = $this->latest_revision_id($post->ID);
+        $source_revision = $this->latest_revision_id($result['post_id']);
 
         // Keep the pre-conversion content addressable for a one-click revert,
         // alongside the revision WordPress stores on update.
         //
         // add_post_meta() runs wp_unslash() on the value, so it has to be
         // slashed on the way in or the backup is stored damaged.
-        if (! metadata_exists('post', $post->ID, self::BACKUP_META)) {
-            add_post_meta($post->ID, self::BACKUP_META, wp_slash($result['original']), true);
+        if (! metadata_exists('post', $result['post_id'], self::BACKUP_META)) {
+            add_post_meta($result['post_id'], self::BACKUP_META, wp_slash($result['original']), true);
         }
 
-        $updated = $this->write_content($post->ID, $result['content']);
+        $updated = $this->write_content($result['post_id'], $result['content']);
 
         if (is_wp_error($updated)) {
             return $updated;
         }
 
         update_post_meta(
-            $post->ID,
+            $result['post_id'],
             self::CONVERTED_META,
             [
                 'time' => time(),
