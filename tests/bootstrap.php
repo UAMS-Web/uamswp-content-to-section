@@ -40,6 +40,7 @@ if (! defined('ABSPATH')) {
  * dropped require in the main file leaves a class missing and a test red.
  */
 require_once __DIR__.'/Support/wp-stubs.php';
+require_once __DIR__.'/Support/wp-cli-stubs.php';
 require_once __DIR__.'/Support/load-main-file.php';
 
 // cspell:ignore ABSPATH autoloaded

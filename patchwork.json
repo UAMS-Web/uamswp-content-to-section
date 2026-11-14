@@ -1,4 +1,4 @@
 {
-    "blacklist": ["vendor/symfony"],
+    "blacklist": ["vendor/symfony", "includes/class-cli.php"],
     "redefinable-internals": ["file_exists"]
 }
