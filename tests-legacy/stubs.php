@@ -339,9 +339,8 @@ class UAMS_C2S_Test_Converter extends UAMS_C2S_Converter
      * This deliberately does NOT test the block parser.
      *
      * @param  string  $content  Post content.
-     * @return array
      */
-    public function convert_content($content)
+    public function convert_content($content): array
     {
         if ($this->canned === null) {
             throw new RuntimeException('convert_content() reached with no canned result set.');

@@ -128,6 +128,8 @@ return RectorConfig::configure()
     // plugin header file). Uncomment for those.
     ->withRootFiles()
     ->withSkip([
+        // The Integration suite's own Composer install (PHPUnit 9.6, wp-phpunit): not ours.
+        __DIR__.'/tests/Integration/vendor',
         ...$neverRules,
         ...($isSweepProfile ? [] : $sweepOnlyRules),
     ])
