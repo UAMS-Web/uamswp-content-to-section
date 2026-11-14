@@ -14,6 +14,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 
 use function Brain\Monkey\Filters\expectApplied;
+use function Brain\Monkey\Functions\when;
 
 covers(UAMS_C2S_Scanner::class);
 
@@ -31,42 +32,39 @@ function uams_c2s_fake_wpdb(array $answers = []): object
         /** @var list<array{string,array}> Every prepare() call: SQL, parameters. */
         public array $prepared = [];
 
-        /** @var array<string,list<mixed>> Queued answers by read method. */
-        public array $answers;
-
-        public function __construct(array $answers)
-        {
-            $this->answers = $answers;
-        }
+        public function __construct(
+            /** @var array<string,list<mixed>> Queued answers by read method. */
+            public array $answers
+        ) {}
 
         public function esc_like($text): string
         {
             return addcslashes((string) $text, '_%\\');
         }
 
-        public function prepare($sql, $params = [])
+        public function prepare($sql, $params = []): string
         {
             $this->prepared[] = [$sql, $params];
 
             return $sql.' |'.json_encode($params);
         }
 
-        public function get_col($sql)
+        public function get_col($sql): mixed
         {
             return $this->next('get_col');
         }
 
-        public function get_var($sql)
+        public function get_var($sql): mixed
         {
             return $this->next('get_var');
         }
 
-        public function get_results($sql)
+        public function get_results($sql): mixed
         {
             return $this->next('get_results');
         }
 
-        private function next(string $method)
+        private function next(string $method): mixed
         {
             return array_shift($this->answers[$method]);
         }
@@ -74,14 +72,14 @@ function uams_c2s_fake_wpdb(array $answers = []): object
 }
 
 beforeEach(function (): void {
-    Functions\when('sanitize_key')->alias(
+    when('sanitize_key')->alias(
         static fn ($key): string => strtolower((string) preg_replace('/[^a-z0-9_\-]/i', '', (string) $key))
     );
-    Functions\when('absint')->alias(static fn ($n): int => abs((int) $n));
-    Functions\when('wp_parse_args')->alias(
+    when('absint')->alias(static fn ($n): int => abs((int) $n));
+    when('wp_parse_args')->alias(
         static fn ($args, $defaults = []): array => array_merge($defaults, $args)
     );
-    Functions\when('maybe_unserialize')->alias(
+    when('maybe_unserialize')->alias(
         static fn ($value) => is_string($value) && str_starts_with($value, 'a:') ? unserialize($value) : $value
     );
 
