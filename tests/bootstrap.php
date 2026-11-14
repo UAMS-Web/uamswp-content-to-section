@@ -36,7 +36,9 @@ if (! defined('ABSPATH')) {
  * The plugin's classes are not Composer-autoloaded, so each file a Unit test
  * needs is required here.
  */
+require_once __DIR__.'/Support/wp-stubs.php';
 require_once __DIR__.'/../includes/class-field-map.php';
+require_once __DIR__.'/../includes/class-html-to-blocks.php';
 require_once __DIR__.'/../includes/class-converter.php';
 require_once __DIR__.'/../includes/class-scanner.php';
 
