@@ -8,9 +8,18 @@ use function WP_CLI\Utils\make_progress_bar;
 /**
  * WP-CLI commands.
  */
+// Both guards run at load, before any test records coverage, so the driver reports
+// them uncovered whatever a test does. With ABSPATH defined and WP_CLI left
+// undefined (the Unit suite), `&&` for `||` exits the run at the first guard and
+// at the second reads the undefined WP_CLI constant, and a removed `!` on the
+// first operand reads it too; each of those stops the run rather than failing a
+// test. The remaining mutations of the second guard change nothing observable,
+// because the class below is declared whether or not the guard returns.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
-if (! defined('WP_CLI') || ! WP_CLI) {
+// @pest-mutate-ignore: BooleanOrToBooleanAnd, RemoveNot
+if (! defined('WP_CLI') || ! WP_CLI) { // @pest-mutate-ignore: IfNegated
     return;
 }
 
@@ -47,7 +56,7 @@ class UAMS_C2S_CLI
      * @param  array  $args  Positional arguments.
      * @param  array  $assoc_args  Associative arguments.
      */
-    public function scan($args, $assoc_args): void
+    public function scan($args, array $assoc_args): void
     {
         $post_type = get_flag_value($assoc_args, 'post_type', '');
         $format = get_flag_value($assoc_args, 'format', 'table');
@@ -139,11 +148,11 @@ class UAMS_C2S_CLI
      * @param  array  $args  Positional arguments.
      * @param  array  $assoc_args  Associative arguments.
      */
-    public function convert($args, $assoc_args): void
+    public function convert($args, array $assoc_args): void
     {
-        $dry_run = (bool) get_flag_value($assoc_args, 'dry-run', false);
-        $verbose = (bool) get_flag_value($assoc_args, 'verbose', false);
-        $all = (bool) get_flag_value($assoc_args, 'all', false);
+        $dry_run = get_flag_value($assoc_args, 'dry-run', false);
+        $verbose = get_flag_value($assoc_args, 'verbose', false);
+        $all = get_flag_value($assoc_args, 'all', false);
 
         $options = [
             'include_geo' => (bool) get_flag_value($assoc_args, 'include-geo', false),
@@ -370,7 +379,7 @@ class UAMS_C2S_CLI
      */
     public function repair($args, $assoc_args): void
     {
-        $dry_run = (bool) get_flag_value($assoc_args, 'dry-run', false);
+        $dry_run = get_flag_value($assoc_args, 'dry-run', false);
 
         $options = [
             'include_geo' => (bool) get_flag_value($assoc_args, 'include-geo', false),
@@ -385,10 +394,9 @@ class UAMS_C2S_CLI
                 WP_CLI::error('Pass one or more post IDs, or --all.');
             }
 
-            $ids = array_values(
-                array_unique(
-                    array_merge(UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk())
-                )
+            // sort() renumbers the keys, so the gaps array_unique() leaves do not matter.
+            $ids = array_unique(
+                array_merge(UAMS_C2S_Scanner::find_damaged(), UAMS_C2S_Scanner::find_at_risk())
             );
 
             sort($ids);
@@ -450,7 +458,6 @@ class UAMS_C2S_CLI
         $failed = 0;
 
         $reasons = [
-            'clean' => 'is not damaged; nothing to repair',
             'mismatch' => 'was refused: its restore source does not match the content that was converted, so repairing would discard the difference. Compare them by hand',
             'not_converted' => 'was restored to its pre-conversion content, but it held no Content block to convert, so it is listed for conversion again rather than repaired',
         ];
@@ -468,12 +475,11 @@ class UAMS_C2S_CLI
             if (empty($result['repaired'])) {
                 $skipped++;
 
-                $reason = $result['reason'] ?? 'clean';
-
                 // A refusal is not the same as a no-op, and 'mismatch' in
-                // particular is the one an operator has to act on.
-                if (isset($reasons[$reason]) && $reason !== 'clean') {
-                    WP_CLI::warning(sprintf('#%d %s.', $id, $reasons[$reason]));
+                // particular is the one an operator has to act on. A post that was
+                // already clean, or a reason not listed, says nothing.
+                if (isset($result['reason'], $reasons[$result['reason']])) {
+                    WP_CLI::warning(sprintf('#%d %s.', $id, $reasons[$result['reason']]));
                 }
 
                 continue;
