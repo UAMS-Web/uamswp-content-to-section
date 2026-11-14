@@ -34,7 +34,7 @@ const UAMS_C2S_SHIPPED_DEFAULTS = [
 it('defines the plugin constants from its own location', function (): void {
     $dir = dirname((string) realpath(UAMS_C2S_MAIN_FILE)).'/';
 
-    expect(UAMS_C2S_VERSION)->toBe('1.0.2')
+    expect(UAMS_C2S_VERSION)->toMatch('/^\d+\.\d+\.\d+$/')
         ->and(realpath(UAMS_C2S_FILE))->toBe(realpath(UAMS_C2S_MAIN_FILE))
         ->and(UAMS_C2S_DIR)->toBe($dir)
         ->and(UAMS_C2S_URL)->toBe('https://example.test/wp-content/plugins/uamswp-content-to-section/');

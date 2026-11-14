@@ -42,6 +42,32 @@ if (! function_exists('plugin_dir_url')) {
     }
 }
 
+/*
+ * The header reader the main file calls for its version. It follows core's
+ * get_file_data(): the first 8 KB, carriage returns normalized, and for each
+ * field the first line that names it, up to the end of the line or a closing
+ * comment.
+ */
+if (! function_exists('get_file_data')) {
+    /**
+     * @param  array<string, string>  $headers
+     * @return array<string, string>
+     */
+    function get_file_data(string $file, array $headers): array
+    {
+        $source = str_replace("\r", "\n", (string) file_get_contents($file, false, null, 0, 8192));
+        $data = [];
+
+        foreach ($headers as $key => $field) {
+            $found = preg_match('/^(?:[ \t]*<\?php)?[ \t\/*#@]*'.preg_quote($field, '/').':(.*)$/mi', $source, $match) === 1;
+
+            $data[$key] = $found ? trim((string) preg_replace('/\s*(?:\*\/|\?>).*/', '', $match[1])) : '';
+        }
+
+        return $data;
+    }
+}
+
 require_once __DIR__.'/../../uamswp-content-to-section.php';
 
 $storage = new ReflectionProperty(Container::instance()->hookStorage(), 'storage');

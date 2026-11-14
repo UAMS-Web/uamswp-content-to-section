@@ -24,7 +24,10 @@ declare(strict_types=1);
 // @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
-define('UAMS_C2S_VERSION', '1.0.2'); // @pest-mutate-ignore: RemoveFunctionCall
+// The header's Version is the only place the release number is written.
+// Emptying the header map leaves no 'Version' key to read, which fails the load
+// before any test records coverage; applied by hand, it turned MainFileTest red.
+define('UAMS_C2S_VERSION', get_file_data(__FILE__, ['Version' => 'Version'])['Version']); // @pest-mutate-ignore: RemoveFunctionCall, RemoveArrayItem
 define('UAMS_C2S_FILE', __FILE__); // @pest-mutate-ignore: RemoveFunctionCall
 define('UAMS_C2S_DIR', plugin_dir_path(__FILE__)); // @pest-mutate-ignore: RemoveFunctionCall
 define('UAMS_C2S_URL', plugin_dir_url(__FILE__)); // @pest-mutate-ignore: RemoveFunctionCall
