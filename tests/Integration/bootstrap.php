@@ -79,12 +79,12 @@ require_once $wpPhpunit.'/includes/functions.php';
  * muplugins_loaded, the earliest hook the test bootstrap fires. A plugin that
  * depends on another plugin requires that one first, in the same closure.
  */
-tests_add_filter('muplugins_loaded', static function () {
+tests_add_filter('muplugins_loaded', static function (): void {
     require dirname(__DIR__, 2).'/uamswp-content-to-section.php';
 });
 
 require $wpPhpunit.'/includes/bootstrap.php';
 
-require_once dirname(__DIR__).'/Support/IntegrationTestCase.php';
+require_once __DIR__.'/../Support/IntegrationTestCase.php';
 
 // cspell:ignore ABSPATH autoloaded muplugins

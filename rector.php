@@ -118,6 +118,11 @@ return RectorConfig::configure()
         __DIR__.'/includes',
         __DIR__.'/uamswp-content-to-section.php',
         __DIR__.'/uninstall.php',
+        // `tests-legacy/` is not listed: its stubs declare WordPress functions with fewer
+        // parameters than core's, and Rector reads them as the real signatures (it stripped
+        // `$post_id` from `current_user_can('edit_post', $id)` in `includes/`). The directory
+        // retires with the Pest migration.
+        __DIR__.'/tests',
     ])
     // WordPress plugins: also analyze the PHP files at the repository root (the
     // plugin header file). Uncomment for those.
