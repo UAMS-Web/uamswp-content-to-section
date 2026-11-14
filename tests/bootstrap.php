@@ -37,5 +37,7 @@ if (! defined('ABSPATH')) {
  * needs is required here.
  */
 require_once __DIR__.'/../includes/class-field-map.php';
+require_once __DIR__.'/../includes/class-converter.php';
+require_once __DIR__.'/../includes/class-scanner.php';
 
 // cspell:ignore ABSPATH autoloaded

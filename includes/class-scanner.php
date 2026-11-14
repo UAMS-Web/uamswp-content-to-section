@@ -4,6 +4,9 @@ declare(strict_types=1);
 /**
  * Finds posts that still contain UAMS Content Blocks.
  */
+// The guard runs once, as the file loads, before any test records coverage, and
+// every test runs with ABSPATH defined, so no test can reach the exit branch.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
 /**
@@ -98,9 +101,10 @@ class UAMS_C2S_Scanner
             [
                 'post_type' => '',
                 'status' => '',
+                // A default limit of -1 is as unlimited as 0: only a limit above zero adds a LIMIT.
+                // @pest-mutate-ignore: DecrementInteger
                 'limit' => 0,
                 'offset' => 0,
-                'exclude' => [],
             ]
         );
 
@@ -110,6 +114,9 @@ class UAMS_C2S_Scanner
             return [];
         }
 
+        // implode() ignores the keys, so the start index of array_fill() cannot show in
+        // the result: the mutants that move it are equivalent.
+        // @pest-mutate-ignore: IncrementInteger, DecrementInteger
         $status_slots = implode(', ', array_fill(0, count($statuses), '%s'));
 
         $needle = '%'.$wpdb->esc_like('<!-- wp:'.UAMS_C2S_Converter::SOURCE_BLOCK).'%';
@@ -124,6 +131,9 @@ class UAMS_C2S_Scanner
 
         if (! empty($args['exclude'])) {
             $exclude = array_map(absint(...), (array) $args['exclude']);
+            // implode() ignores the keys, so the start index of array_fill() cannot show in
+            // the result: the mutants that move it are equivalent.
+            // @pest-mutate-ignore: IncrementInteger, DecrementInteger
             $exclude_slots = implode(', ', array_fill(0, count($exclude), '%d'));
             $sql .= " AND ID NOT IN ( {$exclude_slots} )";
             $params = array_merge($params, $exclude);
@@ -153,6 +163,9 @@ class UAMS_C2S_Scanner
         global $wpdb;
 
         $statuses = self::statuses();
+        // implode() ignores the keys, so the start index of array_fill() cannot show in
+        // the result: the mutants that move it are equivalent.
+        // @pest-mutate-ignore: IncrementInteger, DecrementInteger
         $status_slots = implode(', ', array_fill(0, count($statuses), '%s'));
 
         $params = array_merge(
@@ -282,9 +295,15 @@ class UAMS_C2S_Scanner
         global $wpdb;
 
         $statuses = self::statuses();
+        // implode() ignores the keys, so the start index of array_fill() cannot show in
+        // the result: the mutants that move it are equivalent.
+        // @pest-mutate-ignore: IncrementInteger, DecrementInteger
         $status_slots = implode(', ', array_fill(0, count($statuses), '%s'));
 
         $markers = ['u0022', 'u0026', 'u002d', 'u003c', 'u003e'];
+        // implode() ignores the keys, so the start index of array_fill() cannot show in
+        // the result: the mutants that move it are equivalent.
+        // @pest-mutate-ignore: IncrementInteger, DecrementInteger
         $clauses = implode(' OR ', array_fill(0, count($markers), 'post_content LIKE %s'));
 
         $params = [];
