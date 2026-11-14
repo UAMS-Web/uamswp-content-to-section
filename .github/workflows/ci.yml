@@ -28,10 +28,12 @@ on:
   workflow_dispatch:
   # The mutate job mutates only the changed files on a pull request and on a push, and everything on a scheduled
   # or manual run, under the `mutate-full-timeout-minutes` input (default 180). To catch drift from a dependency
-  # or tooling change, uncomment a schedule (UAMS-Web/uams-claude-skills#532). A schedule runs on the default
-  # branch, and GitHub disables it after 60 days without repository activity.
-  # schedule:
-  #   - cron: '17 7 * * 1'
+  # or tooling change, the schedule below runs the whole chain weekly, Mondays at 07:17 UTC (UAMS-Web/uams-claude-skills#532).
+  # A schedule runs on the default branch, and GitHub disables it after 60 days without repository activity.
+  # The scheduled run honors `vars.RUN_REMOTE_CI` like the other remote checks: with the variable set to `false`, the
+  # `checks` and `CI` jobs skip it before a runner is dispatched.
+  schedule:
+    - cron: '17 7 * * 1'
 
 # A new push to a pull request cancels that pull request's stale run, so a pull request keeps
 # one group. Every other run (a push to the default branch, a manual run) gets a group of its
@@ -50,6 +52,7 @@ permissions:
 jobs:
   # The shared chain. Its checks report as `checks / <job name> (<operating system>)`.
   checks:
+    if: github.event_name != 'schedule' || vars.RUN_REMOTE_CI != 'false'
     uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.11.1
     with:
       linux-only: true
@@ -66,7 +69,7 @@ jobs:
   ci:
     name: CI
     needs: [checks]
-    if: always()
+    if: always() && (github.event_name != 'schedule' || vars.RUN_REMOTE_CI != 'false')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
