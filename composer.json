@@ -32,6 +32,7 @@
             "@test:unit",
             "@test:integration"
         ],
+        "lint:floor": "@php scripts/lint-floor.php",
         "test:unit": "pest",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
         "stan": "phpstan analyse --no-progress --memory-limit=2G",
@@ -45,6 +46,7 @@
     "scripts-descriptions": {
         "setup:integration": "Install the Integration suite's own Composer setup (PHPUnit 9.6, wp-phpunit, the polyfills).",
         "test": "Run both suites, each in its own process, so the Unit suite never sees WordPress.",
+        "lint:floor": "Parse every shipped PHP file with the PHP that runs the script (LINT_PHP selects it).",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
         "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database."
     },
