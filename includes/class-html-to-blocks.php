@@ -1093,9 +1093,8 @@ class UAMS_C2S_HTML_To_Blocks
      * Whether a string is a bare URL.
      *
      * @param  string  $text  Text.
-     * @return bool
      */
-    protected function is_url($text)
+    protected function is_url($text): bool
     {
         $text = trim($text);
 

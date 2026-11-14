@@ -13,9 +13,10 @@
 
 declare(strict_types=1);
 
-use Brain\Monkey\Functions;
-
+use function Brain\Monkey\Functions\stubTranslationFunctions;
 use function Brain\Monkey\Functions\when;
+use function Patchwork\redefine;
+use function Patchwork\relay;
 
 covers(UAMS_C2S_HTML_To_Blocks::class);
 
@@ -26,7 +27,7 @@ const UAMS_C2S_H2B_ATTACHMENTS = [
 
 function uams_c2s_h2b_world(): void
 {
-    Functions\stubTranslationFunctions();
+    stubTranslationFunctions();
 
     when('wp_parse_args')->alias(static fn ($args, $defaults = []): array => array_merge($defaults, $args));
     when('apply_filters')->alias(static fn ($hook, $value) => $value);
@@ -35,7 +36,7 @@ function uams_c2s_h2b_world(): void
     when('wp_strip_all_tags')->alias(static fn ($html): string => strip_tags($html));
     when('esc_attr')->alias(static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES));
     when('esc_url')->alias(static fn (string $url): string => $url);
-    when('wp_parse_url')->alias(static fn ($url, $component = -1) => parse_url($url, $component));
+    when('wp_parse_url')->alias(static fn ($url, $component = -1): string|int|array|false|null => parse_url($url, $component));
     when('attachment_url_to_postid')->alias(static fn ($url): int => UAMS_C2S_H2B_ATTACHMENTS[$url] ?? 0);
 }
 
@@ -97,6 +98,7 @@ function uams_c2s_h2b_flatten(array $blocks): array
 
     return $flat;
 }
+
 dataset('uams_c2s_h2b_cases', [
     'empty string' => [
         '',
@@ -1502,8 +1504,8 @@ it('converts markup to the blocks the editor expects', function (string $html, a
     // Every block's innerHTML is its string content joined, and it has one null
     // placeholder per inner block, as serialize_blocks() requires.
     foreach (uams_c2s_h2b_flatten($result['raw']) as $block) {
-        $strings = array_filter($block['innerContent'], 'is_string');
-        $holes = array_filter($block['innerContent'], 'is_null');
+        $strings = array_filter($block['innerContent'], is_string(...));
+        $holes = array_filter($block['innerContent'], is_null(...));
 
         expect($block['innerHTML'])->toBe(implode('', $strings))
             ->and(count($holes))->toBe(count($block['innerBlocks']))
@@ -1551,7 +1553,7 @@ it('treats a missing or numeric value as text', function (): void {
 it('keeps the whole body as one Custom HTML block when PHP has no DOM extension', function (): void {
     uams_c2s_h2b_world();
 
-    Patchwork\redefine('class_exists', static fn (string $class, bool $autoload = true): bool => $class === 'DOMDocument' ? false : Patchwork\relay());
+    redefine('class_exists', static fn (string $class, bool $autoload = true): bool => $class === 'DOMDocument' ? false : relay());
 
     $converter = new UAMS_C2S_HTML_To_Blocks;
     $blocks = $converter->convert('<p>AAA</p> <em>x</em> ');
@@ -1597,6 +1599,7 @@ it('gives a node with no classes, or no element, an empty class list', function 
     $bare = $document->createElement('p');
     $blank = $document->createElement('p');
     $blank->setAttribute('class', '   ');
+
     $some = $document->createElement('p');
     $some->setAttribute('class', " a \t b\n");
 
@@ -1765,7 +1768,7 @@ it('reports each note once with its keys renumbered', function (): void {
 it('returns nothing for blank input even when PHP has no DOM extension', function (): void {
     uams_c2s_h2b_world();
 
-    Patchwork\redefine('class_exists', static fn (string $class, bool $autoload = true): bool => $class === 'DOMDocument' ? false : Patchwork\relay());
+    redefine('class_exists', static fn (string $class, bool $autoload = true): bool => $class === 'DOMDocument' ? false : relay());
 
     $converter = new UAMS_C2S_HTML_To_Blocks;
 
