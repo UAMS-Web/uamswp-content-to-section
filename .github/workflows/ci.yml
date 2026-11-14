@@ -4,8 +4,8 @@ name: CI
 #
 # The lint and unit chain is the shared one, `UAMS-Web/uams-ci-workflows`, called by the `checks`
 # job, so this plugin carries no copy that drifts. The call runs on Linux only, switches on the two
-# jobs only a plugin runs (`floor-lint`, `download-archive`), leaves mutation testing off (its own
-# ticket, UAMS-Web/uamswp-content-to-section#30) and runs the unit suite as `composer test:unit`.
+# jobs only a plugin runs (`floor-lint`, `download-archive`), runs mutation testing over the first-party
+# PHP (`mutate-paths`; the `mutate` Composer script) and runs the unit suite as `composer test:unit`.
 # `phpcs` stays off: this plugin has no PHPCS configuration. The chain's own header lists every
 # input and its default. The Integration suite is not in the chain and holds no tests yet; a job
 # for it lands beside the call, and in the `needs:` of `CI`, with its first test.
@@ -53,7 +53,8 @@ jobs:
     uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.11.1
     with:
       linux-only: true
-      mutate: false
+      mutate-paths: includes uamswp-content-to-section.php uninstall.php
+      mutate-ignore-paths: includes tests uamswp-content-to-section.php uninstall.php
       floor-lint: true
       floor-lint-php: '8.2'
       download-archive: true

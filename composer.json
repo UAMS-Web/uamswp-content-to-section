@@ -34,6 +34,7 @@
         ],
         "lint:floor": "@php scripts/lint-floor.php",
         "test:unit": "pest",
+        "mutate": "pest --mutate --path=includes,uamswp-content-to-section.php,uninstall.php",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
         "stan": "phpstan analyse --no-progress --memory-limit=2G",
         "refactor": "rector",
@@ -48,6 +49,7 @@
         "test": "Run both suites, each in its own process, so the Unit suite never sees WordPress.",
         "lint:floor": "Parse every shipped PHP file with the PHP that runs the script (LINT_PHP selects it).",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
+        "mutate": "Run Pest mutation testing over the first-party PHP: includes/, the main file and uninstall.php. The shared CI chain passes --min=100 and, on a pull request, a --path of the changed files.",
         "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database."
     },
     "autoload-dev": {
