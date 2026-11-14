@@ -853,6 +853,10 @@ class UAMS_C2S_Converter
         $out = [];
 
         foreach ($revisions as $revision) {
+            // wp_get_post_revisions() returns WP_Post objects here, so the type check only
+            // narrows the stub's `list<int|WP_Post>` for the analyzer; forcing it true
+            // leaves the autosave test, which is the whole condition.
+            // @pest-mutate-ignore: InstanceOfToTrue
             if (! $revision instanceof WP_Post || wp_is_post_autosave($revision)) {
                 continue;
             }
