@@ -64,7 +64,7 @@ class UAMS_C2S_CLI
         $ids = UAMS_C2S_Scanner::find(['post_type' => $post_type]);
 
         if ($format === 'count') {
-            WP_CLI::line(count($ids));
+            WP_CLI::line((string) count($ids));
 
             return;
         }

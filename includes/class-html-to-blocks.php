@@ -169,7 +169,7 @@ class UAMS_C2S_HTML_To_Blocks
             return $this->text_to_blocks($node);
         }
 
-        if ($node->nodeType !== XML_ELEMENT_NODE) {
+        if (! $node instanceof DOMElement) {
             return [];
         }
 
@@ -365,7 +365,7 @@ class UAMS_C2S_HTML_To_Blocks
                 $grandchildren = $this->significant_children($only[0]);
 
                 if (count($grandchildren) === 1
-                    && $grandchildren[0]->nodeType === XML_ELEMENT_NODE
+                    && $grandchildren[0] instanceof DOMElement
                     && $grandchildren[0]->nodeName === 'img'
                 ) {
                     return [$this->image_block($grandchildren[0], $only[0]->getAttribute('href'))];
@@ -491,7 +491,7 @@ class UAMS_C2S_HTML_To_Blocks
         $items = [];
 
         foreach ($node->childNodes as $child) {
-            if ($child->nodeType === XML_ELEMENT_NODE && $child->nodeName === 'li') {
+            if ($child instanceof DOMElement && $child->nodeName === 'li') {
                 $items[] = $this->list_item($child);
             }
         }
@@ -530,7 +530,7 @@ class UAMS_C2S_HTML_To_Blocks
         $content = '';
 
         foreach ($node->childNodes as $child) {
-            if ($child->nodeType === XML_ELEMENT_NODE
+            if ($child instanceof DOMElement
                 && in_array($child->nodeName, ['ul', 'ol'], true)
             ) {
                 $nested[] = $this->list_block($child);
