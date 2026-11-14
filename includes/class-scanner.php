@@ -363,7 +363,7 @@ class UAMS_C2S_Scanner
      * Walk a block tree counting Content blocks.
      *
      * @param  array[]  $blocks  Parsed blocks.
-     * @param  array  $summary  Running tally, by reference.
+     * @param  array{blocks:int,geo:int}  $summary  Running tally, by reference.
      */
     protected static function tally(array $blocks, array &$summary)
     {
