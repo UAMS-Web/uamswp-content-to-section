@@ -12,6 +12,9 @@ declare(strict_types=1);
  * keeps working; the hard-coded fallbacks match the uams-2020 theme
  * (`$suffix = '_b'`).
  */
+// The guard runs once, as the file loads, before any test records coverage, and
+// every test runs with ABSPATH defined, so no test can reach the exit branch.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
 /**
@@ -26,6 +29,10 @@ class UAMS_C2S_Field_Map
      *
      * @var array<string,string>
      */
+    // A property default is evaluated as the class loads, before coverage records,
+    // so the driver reports these lines uncovered. FieldMapTest pins each entry
+    // through target_keys(); each deleted by hand turned that test red.
+    // @pest-mutate-ignore: RemoveArrayItem
     protected static $fallback_target = [
         'section_heading' => 'field_section_heading_b',
         'section_hide_heading' => 'field_section_hide_heading_b',
