@@ -151,7 +151,7 @@ class UAMS_C2S_CLI
             'list_format' => get_flag_value($assoc_args, 'list-format', 'v3'),
         ];
 
-        $ids = array_map('absint', $args);
+        $ids = array_map(absint(...), $args);
 
         if ($ids === []) {
             if (! $all) {
@@ -159,7 +159,7 @@ class UAMS_C2S_CLI
             }
 
             $status = get_flag_value($assoc_args, 'post_status', '');
-            $status = $status ? array_map('trim', explode(',', $status)) : '';
+            $status = $status ? array_map(trim(...), explode(',', $status)) : '';
 
             if ($status && ! UAMS_C2S_Scanner::narrow_statuses($status)) {
                 WP_CLI::error(
@@ -281,7 +281,7 @@ class UAMS_C2S_CLI
     {
         global $wpdb;
 
-        $ids = array_map('absint', $args);
+        $ids = array_map(absint(...), $args);
 
         if ($ids === []) {
             if (! get_flag_value($assoc_args, 'all', false)) {
@@ -289,7 +289,7 @@ class UAMS_C2S_CLI
             }
 
             $ids = array_map(
-                'absint',
+                absint(...),
                 $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",
@@ -378,7 +378,7 @@ class UAMS_C2S_CLI
             'list_format' => get_flag_value($assoc_args, 'list-format', 'v3'),
         ];
 
-        $ids = array_map('absint', $args);
+        $ids = array_map(absint(...), $args);
 
         if ($ids === []) {
             if (! get_flag_value($assoc_args, 'all', false)) {

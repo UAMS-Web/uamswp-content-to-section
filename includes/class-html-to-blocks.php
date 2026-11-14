@@ -1032,7 +1032,7 @@ class UAMS_C2S_HTML_To_Blocks
      * @param  DOMNode  $node  Node.
      * @return string[]
      */
-    protected function class_list(DOMNode $node)
+    protected function class_list(DOMNode $node): array
     {
         if (! $node instanceof DOMElement) {
             return [];
@@ -1115,7 +1115,7 @@ class UAMS_C2S_HTML_To_Blocks
     {
         $text = trim($text);
 
-        if (strpos($text, ' ') !== false || strpos($text, "\n") !== false) {
+        if (str_contains($text, ' ') || str_contains($text, "\n")) {
             return false;
         }
 

@@ -283,14 +283,12 @@ class UAMS_C2S_Converter
     /* ---------------------------------------------------------------------
      * Post level
      * ------------------------------------------------------------------ */
-
     /**
      * Convert a post without saving.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array|WP_Error
      */
-    public function preview_post($post)
+    public function preview_post($post): WP_Error|array
     {
         $post = get_post($post);
 
@@ -657,7 +655,7 @@ class UAMS_C2S_Converter
      * @param  WP_Post  $post  Post.
      * @return array{content:string,source:string,label:string}|WP_Error
      */
-    protected function restore_source(WP_Post $post)
+    protected function restore_source(WP_Post $post): array|WP_Error
     {
         $revision = $this->pre_conversion_revision($post);
 
@@ -806,7 +804,7 @@ class UAMS_C2S_Converter
     protected function usable_revision(WP_Post $revision, WP_Post $post)
     {
         // The pre-conversion content necessarily still had a Content block.
-        if (strpos($revision->post_content, '<!-- wp:'.self::SOURCE_BLOCK) === false) {
+        if (! str_contains($revision->post_content, '<!-- wp:'.self::SOURCE_BLOCK)) {
             return false;
         }
 
