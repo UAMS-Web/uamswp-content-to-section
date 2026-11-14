@@ -496,7 +496,7 @@ class UAMS_C2S_Converter
      * the conversion.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array{post_id:int,damaged:bool,source:string,label:string,error:string,sample:string,converted:array}
+     * @return array{post_id:int,damaged:bool,at_risk:bool,source:string,label:string,verified:string,error:string,sample:string,converted:array}
      */
     public function repair_plan($post): array
     {
@@ -659,7 +659,7 @@ class UAMS_C2S_Converter
      * stripped from the content, so on those posts the backup is damaged too.
      *
      * @param  WP_Post  $post  Post.
-     * @return array{content:string,source:string,label:string}|WP_Error
+     * @return array{content:string,source:string,label:string,verified:string}|WP_Error
      */
     protected function restore_source(WP_Post $post): array|WP_Error
     {
