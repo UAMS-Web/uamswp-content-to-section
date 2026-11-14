@@ -224,7 +224,7 @@ class UAMS_C2S_Admin
      *
      * @param  array<string,mixed>  $options  Conversion options.
      */
-    protected function render_damaged(array $options)
+    protected function render_damaged(array $options): void
     {
         $ids = $this->repair_queue();
 
@@ -412,7 +412,7 @@ class UAMS_C2S_Admin
      * says 0 today" is ambiguous on its own. These counts disambiguate it
      * without needing shell access.
      */
-    protected function render_status()
+    protected function render_status(): void
     {
         $status = UAMS_C2S_Scanner::status();
 
@@ -514,7 +514,7 @@ class UAMS_C2S_Admin
      *
      * @param  int  $total  Posts awaiting conversion.
      */
-    protected function render_batch_buttons($total)
+    protected function render_batch_buttons($total): void
     {
         if ($total < 1) {
             return;
@@ -571,7 +571,7 @@ class UAMS_C2S_Admin
     /**
      * Warn about anything that would make conversion misleading.
      */
-    protected function render_environment_warnings()
+    protected function render_environment_warnings(): void
     {
         $registry = WP_Block_Type_Registry::get_instance();
 
@@ -595,7 +595,7 @@ class UAMS_C2S_Admin
      *
      * @param  string  $notice  Notice slug.
      */
-    protected function render_notice($notice)
+    protected function render_notice($notice): void
     {
         $messages = [
             'converted' => ['success', __('Post converted.', 'uams-c2s')],
@@ -630,7 +630,7 @@ class UAMS_C2S_Admin
      * @param  int[]  $ids  Post IDs on this page.
      * @param  int  $preview_id  Currently previewed post.
      */
-    protected function render_table(array $ids, $preview_id)
+    protected function render_table(array $ids, $preview_id): void
     {
         if ($ids === []) {
             printf('<p>%s</p>', esc_html__('No UAMS Content Blocks remain. Nothing to do.', 'uams-c2s'));
@@ -743,7 +743,7 @@ class UAMS_C2S_Admin
      * @param  string  $label  Button label.
      * @param  string  $class  Extra CSS class.
      */
-    protected function action_button($action, $post_id, $label, $class)
+    protected function action_button($action, $post_id, $label, $class): void
     {
         ?>
 		<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -761,7 +761,7 @@ class UAMS_C2S_Admin
      * @param  int  $paged  Current page.
      * @param  int  $pages  Total pages.
      */
-    protected function render_pagination($paged, $pages)
+    protected function render_pagination($paged, $pages): void
     {
         if ($pages < 2) {
             return;
@@ -797,7 +797,7 @@ class UAMS_C2S_Admin
      * @param  int  $post_id  Post ID.
      * @param  array<string,mixed>  $options  Conversion options.
      */
-    protected function render_preview($post_id, array $options)
+    protected function render_preview($post_id, array $options): void
     {
         if (! $post_id) {
             return;
@@ -1104,8 +1104,8 @@ class UAMS_C2S_Admin
      * Self-submitting interstitial that runs the next batch.
      *
      * @param  int  $remaining  Posts still to process.
-     * @param  array  $args  {
-     *                       Optional.
+     * @param  array<string,mixed>  $args  {
+     *                                     Optional.
      *
      * @type string $action   admin-post action to chain to.
      * @type string $title    Page title.
@@ -1128,7 +1128,7 @@ class UAMS_C2S_Admin
      * The interstitial's markup, with every dynamic part already escaped.
      *
      * @param  int  $remaining  Posts still to process.
-     * @param  array  $args  Same shape as render_batch_progress().
+     * @param  array<string,mixed>  $args  Same shape as render_batch_progress().
      */
     protected function batch_progress_markup($remaining, array $args): string
     {
@@ -1175,7 +1175,7 @@ class UAMS_C2S_Admin
      *
      * @param  string  $nonce_action  Nonce action.
      */
-    protected function authorize($nonce_action)
+    protected function authorize($nonce_action): void
     {
         if (! current_user_can(self::CAPABILITY)) {
             wp_die(esc_html__('You do not have permission to run this conversion.', 'uams-c2s'));
@@ -1189,7 +1189,7 @@ class UAMS_C2S_Admin
      *
      * @param  int  $post_id  Post ID.
      */
-    protected function authorize_post($post_id)
+    protected function authorize_post($post_id): void
     {
         if (! $post_id || ! current_user_can('edit_post', $post_id)) {
             wp_die(esc_html__('You cannot edit that post.', 'uams-c2s'));
