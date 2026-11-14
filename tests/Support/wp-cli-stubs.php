@@ -66,6 +66,8 @@ namespace {
 }
 
 namespace WP_CLI\Utils {
+    use cli\progress\Bar;
+
     function get_flag_value(array $assoc_args, string $flag, mixed $default = null): mixed
     {
         return $assoc_args[$flag] ?? $default;
@@ -82,27 +84,36 @@ namespace WP_CLI\Utils {
 
     function make_progress_bar(string $message, int $count): object
     {
-        $bar = new class($message, $count)
-        {
-            public int $ticks = 0;
-
-            public bool $finished = false;
-
-            public function __construct(public string $message, public int $count) {}
-
-            public function tick(): void
-            {
-                $this->ticks++;
-            }
-
-            public function finish(): void
-            {
-                $this->finished = true;
-            }
-        };
+        $bar = new Bar($message, $count);
 
         \WP_CLI::$calls[] = ['progress_bar', $bar];
 
         return $bar;
+    }
+}
+
+namespace cli\progress {
+    /**
+     * Records what a progress bar is asked to do. The plugin ticks and finishes
+     * only a real bar (WP-CLI hands back a no-op object when output is quiet),
+     * so the test double has to be one.
+     */
+    class Bar
+    {
+        public int $ticks = 0;
+
+        public bool $finished = false;
+
+        public function __construct(public string $message, public int $count) {}
+
+        public function tick(): void
+        {
+            $this->ticks++;
+        }
+
+        public function finish(): void
+        {
+            $this->finished = true;
+        }
     }
 }

@@ -1,6 +1,8 @@
 <?php
 
 declare(strict_types=1);
+use cli\progress\Bar;
+
 use function WP_CLI\Utils\format_items;
 use function WP_CLI\Utils\get_flag_value;
 use function WP_CLI\Utils\make_progress_bar;
@@ -210,7 +212,7 @@ class UAMS_C2S_CLI
         foreach ($ids as $id) {
             $result = $dry_run ? $converter->preview_post($id) : $converter->convert_post($id);
 
-            if ($progress) {
+            if ($progress instanceof Bar) {
                 $progress->tick();
             }
 
@@ -246,7 +248,7 @@ class UAMS_C2S_CLI
             }
         }
 
-        if ($progress) {
+        if ($progress instanceof Bar) {
             $progress->finish();
         }
 
