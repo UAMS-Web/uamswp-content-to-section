@@ -20,6 +20,7 @@ defined('ABSPATH') || exit;
 /**
  * Field key resolution for the Content and Section blocks.
  */
+// Scratch change for the UAMS-Web/uamswp-content-to-section#30 verification run; never merged.
 class UAMS_C2S_Field_Map
 {
     const TARGET_GROUP = 'group_uams_section';
