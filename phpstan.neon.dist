@@ -58,7 +58,7 @@ parameters:
     # from 0 upward (see the code-quality skill), then raise it by one per
     # change as findings are fixed, until `max`. Lowering it is a deliberate,
     # argued change, not a quiet edit to get a red run green.
-    level: 0
+    level: 1
 
     excludePaths:
         analyseAndScan:
@@ -112,6 +112,12 @@ parameters:
     # dynamicConstantNames:
     #     - MY_PLUGIN_URL
     #     - MY_PLUGIN_DIR
+
+    # The main file defines UAMS_C2S_DIR and UAMS_C2S_URL from function calls, which
+    # PHPStan does not evaluate; phpstan-bootstrap.php defines the same names as
+    # plain strings so a use in another file is known (constant.notFound at level 1).
+    bootstrapFiles:
+        - phpstan-bootstrap.php
 
     # Checkout-scoped cache. PHPStan's default tmpDir is
     # `sys_get_temp_dir()/phpstan`: machine-global, shared by every checkout and
