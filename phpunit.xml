@@ -24,6 +24,7 @@
         <include>
             <directory suffix=".php">./includes</directory>
             <file>./uamswp-content-to-section.php</file>
+            <file>./uninstall.php</file>
         </include>
     </source>
 </phpunit>

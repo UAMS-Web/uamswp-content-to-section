@@ -1,0 +1,4 @@
+{
+    "blacklist": ["vendor/symfony"],
+    "redefinable-internals": ["file_exists"]
+}

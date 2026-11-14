@@ -242,10 +242,6 @@ function uams_c2s_marked(array $blocks): string
 const UAMS_C2S_WITH_BLOCK = '<!-- wp:acf/uams-content {"data":{"content_heading":"Hi"}} /-->';
 
 beforeEach(function (): void {
-    if (! defined('UAMS_C2S_VERSION')) {
-        define('UAMS_C2S_VERSION', '9.9.9');
-    }
-
     $cache = new ReflectionProperty(UAMS_C2S_Field_Map::class, 'cache');
     $cache->setValue(null, []);
 
