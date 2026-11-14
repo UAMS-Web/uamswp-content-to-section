@@ -12,3 +12,4 @@
 *.log
 /.phpunit.result.cache
 /.phpstan/
+/tests/Integration/vendor/

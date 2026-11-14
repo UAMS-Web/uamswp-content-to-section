@@ -247,9 +247,25 @@ inferring it.
 
 ## Tests
 
+The Unit suite runs on Pest 5, on PHP 8.4, with WordPress mocked by Brain Monkey:
+
 ```bash
-php tests/test-slashing.php
-php tests/test-html-to-blocks.php
+composer install
+vendor/bin/pest
+```
+
+The Integration suite (WordPress booted through wp-phpunit, PHPUnit 9.6) has its own Composer setup:
+
+```bash
+composer setup:integration
+composer test:integration
+```
+
+The two original scripts also run on their own, and `vendor/bin/pest` runs both in separate processes:
+
+```bash
+php tests-legacy/test-slashing.php
+php tests-legacy/test-html-to-blocks.php
 ```
 
 `test-slashing.php` is regression cover for the 1.0.0 slashing bug: damage
@@ -261,7 +277,7 @@ refuses rather than reporting success when it cannot be trusted.
 alignment — including that a source already carrying `has-text-align-*` is not
 given it twice.
 
-`tests/stubs.php` fakes just enough WordPress to load both, including the fact
+`tests-legacy/stubs.php` fakes just enough WordPress to load both, including the fact
 that `wp_update_post()` and `add_post_meta()` unslash what they are handed and
 that `add_post_meta()` refuses to overwrite a `$unique` row. No PHPUnit, no
 database.
