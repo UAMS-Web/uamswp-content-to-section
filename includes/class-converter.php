@@ -4,6 +4,9 @@ declare(strict_types=1);
 /**
  * Block-level and post-level conversion.
  */
+// The guard runs once, as the file loads, before any test records coverage, and
+// every test runs with ABSPATH defined, so no test can reach the exit branch.
+// @pest-mutate-ignore: BooleanOrToBooleanAnd
 defined('ABSPATH') || exit;
 
 /**
@@ -41,6 +44,10 @@ class UAMS_C2S_Converter
      *
      * @var string[]
      */
+    // A constant is evaluated as the class loads, before coverage records, so the
+    // driver reports this line uncovered. ConverterTest pins it through
+    // wrote_unslashed('1.0.0'); the entry deleted by hand turned that test red.
+    // @pest-mutate-ignore: RemoveArrayItem
     const UNSLASHED_VERSIONS = ['1.0.0'];
 
     /**
@@ -242,10 +249,6 @@ class UAMS_C2S_Converter
      */
     protected function inner_content_padding($count): array
     {
-        if ($count < 1) {
-            return ["\n"];
-        }
-
         $content = ["\n"];
 
         for ($i = 0; $i < $count; $i++) {
@@ -522,6 +525,9 @@ class UAMS_C2S_Converter
 
         $plan['converted'] = $record;
         $plan['damaged'] = self::looks_damaged($post->post_content);
+        // A record with no version reads as the empty string or any other
+        // non-matching string alike: wrote_unslashed() is false for both.
+        // @pest-mutate-ignore: EmptyStringToNotEmpty
         $plan['at_risk'] = self::wrote_unslashed($record['version'] ?? '');
 
         if (! $plan['damaged'] && ! $plan['at_risk']) {
@@ -600,7 +606,7 @@ class UAMS_C2S_Converter
             return '';
         }
 
-        $at = (int) $match[0][1];
+        $at = $match[0][1];
         $start = max(0, $at - $padding);
         $slice = substr($content, $start, $padding * 2 + strlen($match[0][0]));
 
@@ -770,12 +776,18 @@ class UAMS_C2S_Converter
             }
         }
 
+        // PHP compares an int with a numeric string numerically, and WordPress stores
+        // the time as an int, so the cast changes no comparison below.
+        // @pest-mutate-ignore: RemoveIntegerCast
         $cutoff = ! empty($meta['time']) ? (int) $meta['time'] : 0;
 
         foreach ($this->revisions($post->ID) as $revision) {
             // Anything saved after the conversion is a later edit, not a source.
             // Only the search needs this; a recorded id is captured before the
             // update and is pre-conversion by construction.
+            // strtotime() reads the zone token before or after the date alike, so
+            // switching the two sides of the concatenation parses the same instant.
+            // @pest-mutate-ignore: ConcatSwitchSides
             if ($cutoff && strtotime($revision->post_date_gmt.' +0000') > $cutoff) {
                 continue;
             }
