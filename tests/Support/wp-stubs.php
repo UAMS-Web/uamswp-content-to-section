@@ -9,6 +9,10 @@
 
 declare(strict_types=1);
 
+if (! defined('HOUR_IN_SECONDS')) {
+    define('HOUR_IN_SECONDS', 3600);
+}
+
 if (! class_exists('WP_Error')) {
     class WP_Error
     {
@@ -55,6 +59,24 @@ if (! class_exists('WP_Post')) {
             foreach ($fields as $name => $value) {
                 $this->{$name} = $value;
             }
+        }
+    }
+}
+
+if (! class_exists('WP_Block_Type_Registry')) {
+    class WP_Block_Type_Registry
+    {
+        /** @var list<string> Block names a test has registered. */
+        public static array $registered = [];
+
+        public static function get_instance(): self
+        {
+            return new self;
+        }
+
+        public function is_registered(string $name): bool
+        {
+            return in_array($name, self::$registered, true);
         }
     }
 }
