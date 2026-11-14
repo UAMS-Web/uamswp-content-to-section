@@ -1000,6 +1000,10 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function outer_html(DOMNode $node): string
     {
+        // saveHTML() returns false only when serialization fails, which a node that
+        // came out of the parser does not do; the cast only satisfies the analyzer's
+        // `string|false`, and removing it changes nothing a test or a site can see.
+        // @pest-mutate-ignore: RemoveStringCast
         return (string) $this->owner_document($node)->saveHTML($node);
     }
 
