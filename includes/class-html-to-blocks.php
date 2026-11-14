@@ -663,10 +663,9 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function figure(DOMElement $node): array
     {
-        $images = $node->getElementsByTagName('img');
+        $img = $node->getElementsByTagName('img')->item(0);
 
-        if ($images->length > 0) {
-            $img = $images->item(0);
+        if ($img instanceof DOMElement) {
             $link = null;
             $parent = $img->parentNode;
             $caption = '';
@@ -678,19 +677,19 @@ class UAMS_C2S_HTML_To_Blocks
                 $link = $parent->getAttribute('href');
             }
 
-            $captions = $node->getElementsByTagName('figcaption');
+            $figcaption = $node->getElementsByTagName('figcaption')->item(0);
 
-            if ($captions->length > 0) {
-                $caption = trim($this->inner_html($captions->item(0)));
+            if ($figcaption instanceof DOMElement) {
+                $caption = trim($this->inner_html($figcaption));
             }
 
             return [$this->image_block($img, $link, $caption, $this->class_list($node))];
         }
 
-        $iframes = $node->getElementsByTagName('iframe');
+        $iframe = $node->getElementsByTagName('iframe')->item(0);
 
-        if ($iframes->length > 0) {
-            return [$this->iframe($iframes->item(0))];
+        if ($iframe instanceof DOMElement) {
+            return [$this->iframe($iframe)];
         }
 
         $this->note(__('A <figure> with no image or iframe was preserved as a Custom HTML block.', 'uams-c2s'));
@@ -837,13 +836,13 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function preformatted(DOMElement $node): array
     {
-        $codes = $node->getElementsByTagName('code');
+        $code = $node->getElementsByTagName('code')->item(0);
 
-        if ($codes->length > 0) {
+        if ($code instanceof DOMElement) {
             return $this->block(
                 'core/code',
                 [],
-                '<pre class="wp-block-code"><code>'.trim($this->inner_html($codes->item(0))).'</code></pre>'
+                '<pre class="wp-block-code"><code>'.trim($this->inner_html($code)).'</code></pre>'
             );
         }
 
@@ -994,7 +993,7 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function outer_html(DOMNode $node): string
     {
-        return (string) $node->ownerDocument->saveHTML($node);
+        return (string) $node->ownerDocument?->saveHTML($node);
     }
 
     /**
@@ -1007,7 +1006,7 @@ class UAMS_C2S_HTML_To_Blocks
         $html = '';
 
         foreach ($node->childNodes as $child) {
-            $html .= $node->ownerDocument->saveHTML($child);
+            $html .= $node->ownerDocument?->saveHTML($child);
         }
 
         return $html;
