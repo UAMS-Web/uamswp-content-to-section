@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Description:       Converts legacy UAMS Content Blocks (acf/uams-content) into UAMS Section Blocks (acf/uams-section), turning the WYSIWYG field into native inner blocks. Ships a Tools screen with preview/convert/revert, an in-editor block transform, and WP-CLI commands.
  * Version:           1.0.2
  * Requires at least: 5.8
- * Requires PHP:      7.4
+ * Requires PHP:      8.2
  * Author:            UAMS Web Services
  * Author URI:        https://communications.uams.edu/web/
  * License:           GPL-2.0-or-later
