@@ -494,6 +494,9 @@ class UAMS_C2S_HTML_To_Blocks
         $items = [];
 
         foreach ($node->childNodes as $child) {
+            // A text or comment node's name is '#text' or '#comment', never 'li', so the
+            // element check only narrows the type for the analyzer.
+            // @pest-mutate-ignore: InstanceOfToTrue
             if ($child instanceof DOMElement && $child->nodeName === 'li') {
                 $items[] = $this->list_item($child);
             }
@@ -534,6 +537,8 @@ class UAMS_C2S_HTML_To_Blocks
         $content = '';
 
         foreach ($node->childNodes as $child) {
+            // Same as in list_block(): only an element can be named 'ul' or 'ol'.
+            // @pest-mutate-ignore: InstanceOfToTrue
             if ($child instanceof DOMElement
                 && in_array($child->nodeName, ['ul', 'ol'], true)
             ) {
@@ -993,6 +998,10 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function outer_html(DOMNode $node): string
     {
+        // Every node handed to this helper belongs to a document, and saveHTML() of a
+        // node returns a string, so the null-safe read and the cast only satisfy the
+        // analyzer; removing either changes nothing a test or a site can observe.
+        // @pest-mutate-ignore: RemoveStringCast, RemoveNullSafeOperator
         return (string) $node->ownerDocument?->saveHTML($node);
     }
 
@@ -1006,6 +1015,8 @@ class UAMS_C2S_HTML_To_Blocks
         $html = '';
 
         foreach ($node->childNodes as $child) {
+            // Same as in outer_html(): the node always has an owner document.
+            // @pest-mutate-ignore: RemoveNullSafeOperator
             $html .= $node->ownerDocument?->saveHTML($child);
         }
 
