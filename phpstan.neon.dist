@@ -155,6 +155,16 @@ parameters:
         -
             identifier: return.void
             reportUnmatched: false
+        # serialize_blocks() in core's stubs wants every block as the exact shape
+        # array{blockName, attrs, innerBlocks, innerHTML, innerContent}.
+        # UAMS_C2S_Converter::walk() rebuilds a parsed block tree recursively, so
+        # its blocks nest, and PHPStan rejects the recursive `@phpstan-type` that
+        # would describe them (`typeAlias.circular`). Remove this entry when a
+        # recursive block type can be declared, or the stub accepts nested blocks.
+        # Ruled by Josh on UAMS-Web/uamswp-content-to-section#36.
+        -
+            identifier: argument.type
+            path: includes/class-converter.php
         # The entry most plugins need once the level reaches 4, from
         # uamswp-migration-api: the PHP version guard in the plugin header.
         # PHPStan analyzes at the `min` above, so

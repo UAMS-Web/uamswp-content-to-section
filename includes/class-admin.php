@@ -779,6 +779,9 @@ class UAMS_C2S_Admin
             ]
         );
 
+        // Core returns a list of strings, or null with fewer than two pages, for
+        // 'type' => 'array'; the stub's conditional return resolves to `string`.
+        /** @var list<string>|null $links */
         if (! $links) {
             return;
         }

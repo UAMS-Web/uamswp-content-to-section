@@ -178,7 +178,7 @@ it('prints only the count, or only the ids, when asked', function (): void {
     uams_c2s_cli_run('scan', [], ['format' => 'count']);
     uams_c2s_cli_run('scan', [], ['format' => 'ids']);
 
-    expect(WP_CLI::$calls)->toBe([['line', 3], ['line', '7 9 12']]);
+    expect(WP_CLI::$calls)->toBe([['line', '3'], ['line', '7 9 12']]);
 });
 
 it('reports a scan that found nothing, still printing a count of zero or no ids for those formats', function (): void {
@@ -191,7 +191,7 @@ it('reports a scan that found nothing, still printing a count of zero or no ids 
 
     expect(WP_CLI::$calls)->toBe([
         ['success', 'No UAMS Content Blocks found.'],
-        ['line', 0],
+        ['line', '0'],
         ['line', ''],
     ]);
 });
