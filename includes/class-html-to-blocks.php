@@ -995,32 +995,52 @@ class UAMS_C2S_HTML_To_Blocks
      * Serialize a node including its own tag.
      *
      * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
      */
     protected function outer_html(DOMNode $node): string
     {
-        // Every node handed to this helper belongs to a document, and saveHTML() of a
-        // node returns a string, so the null-safe read and the cast only satisfy the
-        // analyzer; removing either changes nothing a test or a site can observe.
-        // @pest-mutate-ignore: RemoveStringCast, RemoveNullSafeOperator
-        return (string) $node->ownerDocument?->saveHTML($node);
+        return (string) $this->owner_document($node)->saveHTML($node);
     }
 
     /**
      * Serialize a node's children.
      *
      * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
      */
     protected function inner_html(DOMNode $node): string
     {
+        $document = $this->owner_document($node);
         $html = '';
 
         foreach ($node->childNodes as $child) {
-            // Same as in outer_html(): the node always has an owner document.
-            // @pest-mutate-ignore: RemoveNullSafeOperator
-            $html .= $node->ownerDocument?->saveHTML($child);
+            $html .= $document->saveHTML($child);
         }
 
         return $html;
+    }
+
+    /**
+     * The document a node belongs to.
+     *
+     * Only a DOMDocument has none, and no caller hands one to the serializers, so
+     * reaching the exception means a bug in the caller rather than bad content.
+     *
+     * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
+     */
+    protected function owner_document(DOMNode $node): DOMDocument
+    {
+        $document = $node->ownerDocument;
+
+        if (! $document instanceof DOMDocument) {
+            throw new LogicException('Cannot serialize a node with no owner document; a DOMDocument was passed where an element or node is required.');
+        }
+
+        return $document;
     }
 
     /**

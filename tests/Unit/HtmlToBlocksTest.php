@@ -1609,6 +1609,29 @@ it('gives a node with no classes, or no element, an empty class list', function 
         ->and($classes->invoke($converter, $some))->toBe(['a', 'b']);
 });
 
+it('refuses to serialize a document, which has no owner document', function (string $method): void {
+    uams_c2s_h2b_world();
+
+    $converter = new UAMS_C2S_HTML_To_Blocks;
+    $serialize = new ReflectionMethod($converter, $method);
+
+    expect(fn (): mixed => $serialize->invoke($converter, new DOMDocument))
+        ->toThrow(LogicException::class, 'Cannot serialize a node with no owner document');
+})->with(['outer_html', 'inner_html']);
+
+it('serializes a node and its children through the owner document', function (): void {
+    uams_c2s_h2b_world();
+
+    $converter = new UAMS_C2S_HTML_To_Blocks;
+    $document = new DOMDocument;
+    $document->loadHTML('<p>a <b>b</b></p>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+
+    $paragraph = $document->getElementsByTagName('p')->item(0);
+
+    expect((new ReflectionMethod($converter, 'outer_html'))->invoke($converter, $paragraph))->toBe('<p>a <b>b</b></p>')
+        ->and((new ReflectionMethod($converter, 'inner_html'))->invoke($converter, $paragraph))->toBe('a <b>b</b>');
+});
+
 it('recognises blank text, including the separators the DOM leaves behind', function (string $text, bool $blank): void {
     uams_c2s_h2b_world();
 
