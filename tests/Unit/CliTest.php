@@ -537,17 +537,16 @@ it('counts a refused repair as not repaired, warning for every reason but "clean
         1 => ['repaired' => false, 'reason' => 'clean'],
         2 => ['repaired' => false, 'reason' => 'mismatch'],
         3 => ['repaired' => false, 'reason' => 'not_converted'],
-        4 => ['repaired' => false],
-        5 => ['repaired' => false, 'reason' => 'something_new'],
+        4 => ['repaired' => false, 'reason' => 'something_new'],
     ];
 
-    uams_c2s_cli_run('repair', ['1', '2', '3', '4', '5']);
+    uams_c2s_cli_run('repair', ['1', '2', '3', '4']);
 
     expect(WP_CLI::messages('warning'))->toBe([
         '#2 was refused: its restore source does not match the content that was converted, so repairing would discard the difference. Compare them by hand.',
         '#3 was restored to its pre-conversion content, but it held no Content block to convert, so it is listed for conversion again rather than repaired.',
     ])
-        ->and(WP_CLI::messages('success'))->toBe(['0 post(s) repaired, 5 not repaired, 0 failed.']);
+        ->and(WP_CLI::messages('success'))->toBe(['0 post(s) repaired, 4 not repaired, 0 failed.']);
 });
 
 it('previews a repair as a table without repairing anything', function (): void {

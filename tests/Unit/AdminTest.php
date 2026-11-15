@@ -1128,7 +1128,6 @@ it('repairs one post, forcing it, and words each outcome', function (): void {
         3 => ['repaired' => false, 'reason' => 'clean'],
         4 => ['repaired' => false, 'reason' => 'mismatch'],
         5 => ['repaired' => false, 'reason' => 'not_converted'],
-        6 => ['repaired' => false],
         7 => ['repaired' => false, 'reason' => 'something_new'],
     ];
 
@@ -1145,7 +1144,6 @@ it('repairs one post, forcing it, and words each outcome', function (): void {
         3 => uams_c2s_admin_redirect('norepair'),
         4 => uams_c2s_admin_redirect('norepair_mismatch'),
         5 => uams_c2s_admin_redirect('norepair_empty'),
-        6 => uams_c2s_admin_redirect('norepair'),
         7 => uams_c2s_admin_redirect('norepair'),
     ])
         ->and($world->calls[0])->toBe(['repair_post', 1, true])

@@ -113,8 +113,17 @@ class UAMS_C2S_Field_Map
 
             if (is_array($fields)) {
                 foreach ($fields as $field) {
-                    if (! empty($field['name']) && ! empty($field['key'])) {
-                        $map[$field['name']] = $field['key'];
+                    if (! is_array($field)) {
+                        continue;
+                    }
+
+                    $name = $field['name'] ?? '';
+                    $key = $field['key'] ?? '';
+
+                    // A row whose name or key is not a string cannot key the map; it
+                    // reads as a row with no name or key.
+                    if (is_string($name) && is_string($key) && ! empty($name) && ! empty($key)) {
+                        $map[$name] = $key;
                     }
                 }
             }

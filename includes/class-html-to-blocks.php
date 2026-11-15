@@ -426,7 +426,8 @@ class UAMS_C2S_HTML_To_Blocks
             return [];
         }
 
-        $section_level = (int) $this->args['max_heading'];
+        $max_heading = $this->args['max_heading'];
+        $section_level = is_scalar($max_heading) ? (int) $max_heading : 0;
 
         if (! empty($this->args['demote_headings']) && $level <= $section_level) {
             $level = $section_level + 1;
