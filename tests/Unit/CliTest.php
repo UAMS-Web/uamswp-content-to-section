@@ -55,7 +55,7 @@ function uams_c2s_cli_world(): object
         /** @var array<int,array<string,mixed>> */
         public array $plans = [];
 
-        /** @var list<array{string,mixed,array<string,mixed>}> Converter calls: method, id, options. */
+        /** @var list<array<int,mixed>> Converter calls: method, id, options, then any extras. */
         public array $calls = [];
 
         /** @var array<int,array{type:string,status:string,title:string}> */

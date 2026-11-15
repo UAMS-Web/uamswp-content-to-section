@@ -1546,8 +1546,8 @@ it('treats a missing or numeric value as text', function (): void {
 
     $converter = new UAMS_C2S_HTML_To_Blocks;
 
-    expect($converter->convert(null))->toBe([])
-        ->and(uams_c2s_h2b_lines($converter->convert(123)))->toBe(['core/paragraph [] ["\n<p>123</p>\n"]']);
+    expect($converter->convert(null))->toBe([]) // @phpstan-ignore argument.type (deliberate bad input)
+        ->and(uams_c2s_h2b_lines($converter->convert(123)))->toBe(['core/paragraph [] ["\n<p>123</p>\n"]']); // @phpstan-ignore argument.type (deliberate bad input)
 });
 
 it('keeps the whole body as one Custom HTML block when PHP has no DOM extension', function (): void {

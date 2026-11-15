@@ -36,7 +36,10 @@
         "test:unit": "pest",
         "mutate": "pest --mutate --path=includes,uamswp-content-to-section.php,uninstall.php",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
-        "stan": "phpstan analyse --no-progress --memory-limit=2G",
+        "stan": [
+            "phpstan analyse --no-progress --memory-limit=2G",
+            "phpstan analyse --configuration=phpstan-tests.neon.dist --no-progress --memory-limit=2G"
+        ],
         "refactor": "rector",
         "refactor:sweep": "rector --clear-cache --config=rector-sweep.php",
         "test:refactor": "rector --dry-run",

@@ -456,7 +456,8 @@ it('gives the Section a fresh id only when the Content block had one', function 
     $without = $converter->convert_block(uams_c2s_content_block(uams_c2s_data([], ['anchor' => 'a'])), $stats);
     $empty = $converter->convert_block(uams_c2s_content_block(uams_c2s_data([], ['id' => '', 'anchor' => 'a'])), $stats);
 
-    expect($with['attrs']['id'])->toStartWith('block_')->not->toBe('block_old')
+    expect($with['attrs']['id'])->toStartWith('block_')
+        ->and($with['attrs']['id'])->not->toBe('block_old')
         ->and($without['attrs'])->not->toHaveKey('id')
         ->and($empty['attrs'])->not->toHaveKey('id');
 });
@@ -482,7 +483,8 @@ it('carries a class name over and notes a missing anchor', function (): void {
     $stats = ['converted' => 0, 'skipped' => 0, 'notices' => []];
     $plain = $converter->convert_block(uams_c2s_content_block(uams_c2s_data([], ['anchor' => '', 'className' => ''])), $stats);
 
-    expect($plain['attrs'])->not->toHaveKey('anchor')->not->toHaveKey('className')
+    expect($plain['attrs'])->not->toHaveKey('anchor')
+        ->and($plain['attrs'])->not->toHaveKey('className')
         ->and($stats['notices'])->toHaveCount(1)
         ->and($stats['notices'][0])->toStartWith('A converted block had no custom anchor');
 
@@ -684,18 +686,18 @@ it('flags a stripped escape that follows an intact one', function (): void {
 });
 
 it('reads non-string content as a string when checking for damage', function (): void {
-    expect(UAMS_C2S_Converter::looks_damaged(null))->toBeFalse()
-        ->and(UAMS_C2S_Converter::looks_damaged(false))->toBeFalse();
+    expect(UAMS_C2S_Converter::looks_damaged(null))->toBeFalse() // @phpstan-ignore argument.type (deliberate bad input)
+        ->and(UAMS_C2S_Converter::looks_damaged(false))->toBeFalse(); // @phpstan-ignore argument.type (deliberate bad input)
 });
 
 it('names plugin version 1.0.0 as the one that wrote content unslashed', function (): void {
     expect(UAMS_C2S_Converter::wrote_unslashed('1.0.0'))->toBeTrue()
         ->and(UAMS_C2S_Converter::wrote_unslashed('1.0.1'))->toBeFalse()
         ->and(UAMS_C2S_Converter::wrote_unslashed(''))->toBeFalse()
-        ->and(UAMS_C2S_Converter::wrote_unslashed(null))->toBeFalse()
+        ->and(UAMS_C2S_Converter::wrote_unslashed(null))->toBeFalse() // @phpstan-ignore argument.type (deliberate bad input)
         ->and(UAMS_C2S_Converter::wrote_unslashed('1.0.0 '))->toBeFalse()
         // A version handed over as an object that prints as the version string.
-        ->and(UAMS_C2S_Converter::wrote_unslashed(new class
+        ->and(UAMS_C2S_Converter::wrote_unslashed(new class // @phpstan-ignore argument.type (deliberate bad input)
         {
             public function __toString(): string
             {
@@ -740,7 +742,7 @@ it('trims whitespace from the sample edges', function (): void {
 
 it('returns an empty sample when nothing matched', function (): void {
     expect(UAMS_C2S_Converter::damage_sample('clean \\u003c content'))->toBe('')
-        ->and(UAMS_C2S_Converter::damage_sample(null))->toBe('');
+        ->and(UAMS_C2S_Converter::damage_sample(null))->toBe(''); // @phpstan-ignore argument.type (deliberate bad input)
 });
 
 it('reports the plugin version that converted a post', function (): void {
@@ -1113,6 +1115,7 @@ it('falls back to a search when the named revision is not usable', function (str
             return $world->revision(41, 45, UAMS_C2S_OLD_CONTENT)->ID;
         })(),
         'damaged' => $world->revision(41, 46, UAMS_C2S_OLD_CONTENT.' u003c')->ID,
+        default => throw new LogicException("No case for {$problem}."),
     };
     $world->meta[41]['_uams_c2s_converted'] = ['source_revision' => $named];
 
