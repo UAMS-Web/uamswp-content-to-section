@@ -115,3 +115,16 @@ it('asks ACF once and serves later calls from the cache', function (): void {
     expect($second)->toBe($first)
         ->and($second['section_heading'])->toBe('field_cached');
 });
+
+it('skips a field row that is not an array, or whose name or key is not a string', function (): void {
+    Functions\expect('acf_get_fields')
+        ->once()
+        ->andReturn([
+            'junk',
+            ['name' => ['section_heading'], 'key' => 'field_a'],
+            ['name' => 'section_hide_heading', 'key' => 5],
+            ['name' => 'section_extra', 'key' => 'field_ok'],
+        ]);
+
+    expect(UAMS_C2S_Field_Map::target_keys())->toBe(array_merge(UAMS_C2S_FALLBACK_KEYS, ['section_extra' => 'field_ok']));
+});

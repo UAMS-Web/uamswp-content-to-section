@@ -13,7 +13,11 @@ defined('ABSPATH') || exit;
  * Turns acf/uams-content blocks into acf/uams-section blocks.
  *
  * @phpstan-type Block array<string,mixed>
- * @phpstan-type Stats array<string,mixed>
+ * @phpstan-type Stats array{converted:int,skipped:int,notices:string[]}
+ * @phpstan-type Preview array{content:string,converted:int,skipped:int,notices:string[],post_id:int,original:string}
+ * @phpstan-type Converted array{content:string,converted:int,skipped:int,notices:string[],post_id:int,original:string,updated:bool}
+ * @phpstan-type Repaired array{content:string,converted:int,skipped:int,notices:string[],post_id:int,original:string,updated:bool,repaired:true,source:string,label:string}
+ * @phpstan-type Refusal array{post_id:int,repaired:false,reason:string}
  */
 class UAMS_C2S_Converter
 {
@@ -195,7 +199,7 @@ class UAMS_C2S_Converter
 
         // Body: WYSIWYG -> inner blocks.
         $wysiwyg = UAMS_C2S_Field_Map::wysiwyg_field();
-        $html = isset($data[$wysiwyg]) ? (string) $data[$wysiwyg] : '';
+        $html = isset($data[$wysiwyg]) && is_scalar($data[$wysiwyg]) ? (string) $data[$wysiwyg] : '';
 
         $parser = new UAMS_C2S_HTML_To_Blocks($this->args);
         $inner_blocks = $parser->convert($html);
@@ -294,7 +298,7 @@ class UAMS_C2S_Converter
      * Convert a post without saving.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array<string,mixed>|WP_Error
+     * @return Preview|WP_Error
      */
     public function preview_post($post): WP_Error|array
     {
@@ -315,7 +319,7 @@ class UAMS_C2S_Converter
      * Convert a post and save it.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array<string,mixed>|WP_Error
+     * @return Converted|WP_Error
      */
     public function convert_post($post)
     {
@@ -412,7 +416,7 @@ class UAMS_C2S_Converter
      * @param  int|WP_Post  $post  Post.
      * @param  bool  $force  Repair even when no damage is visible, for posts
      *                       an affected version converted.
-     * @return array<string,mixed>|WP_Error
+     * @return Repaired|Refusal|WP_Error
      */
     public function repair_post($post, $force = false)
     {
@@ -572,7 +576,7 @@ class UAMS_C2S_Converter
     /**
      * Did this plugin version write post content without slashing it?
      *
-     * @param  string  $version  Version from a conversion record.
+     * @param  int|string  $version  Version from a conversion record (a numeric version becomes an int array key).
      */
     public static function wrote_unslashed($version): bool
     {
@@ -589,7 +593,7 @@ class UAMS_C2S_Converter
     {
         $record = get_post_meta($post_id, self::CONVERTED_META, true);
 
-        return (is_array($record) && ! empty($record['version'])) ? (string) $record['version'] : '';
+        return (is_array($record) && ! empty($record['version']) && is_scalar($record['version'])) ? (string) $record['version'] : '';
     }
 
     /**
@@ -693,6 +697,17 @@ class UAMS_C2S_Converter
 
         $backup = get_post_meta($post->ID, self::BACKUP_META, true);
 
+        // A scalar reads as its string form. An array or object is unreadable,
+        // which is the same answer as no backup at all.
+        if (! is_scalar($backup)) {
+            return new WP_Error(
+                'uams_c2s_no_backup',
+                __('No pre-conversion backup or usable revision is stored for this post.', 'uams-c2s')
+            );
+        }
+
+        $backup = (string) $backup;
+
         // Distrust the backup on its provenance, not on how it looks. An
         // affected version stored it through add_post_meta()'s unslash, so it
         // lost a backslash level even where nothing visible survives to prove it.
@@ -704,7 +719,7 @@ class UAMS_C2S_Converter
         }
 
         return [
-            'content' => (string) $backup,
+            'content' => $backup,
             'source' => 'backup',
             'verified' => 'exact',
             'label' => __('stored backup', 'uams-c2s'),
@@ -734,7 +749,14 @@ class UAMS_C2S_Converter
             return 'unknown';
         }
 
-        $backup = (string) get_post_meta($post_id, self::BACKUP_META, true);
+        $backup = get_post_meta($post_id, self::BACKUP_META, true);
+
+        // A backup that is not a scalar cannot be compared, like no backup.
+        if (! is_scalar($backup)) {
+            return 'unknown';
+        }
+
+        $backup = (string) $backup;
 
         if ((string) $content === $backup || wp_unslash((string) $content) === $backup) {
             return 'exact';
@@ -764,7 +786,7 @@ class UAMS_C2S_Converter
         $meta = get_post_meta($post->ID, self::CONVERTED_META, true);
         $meta = is_array($meta) ? $meta : [];
 
-        if (! empty($meta['source_revision'])) {
+        if (! empty($meta['source_revision']) && is_numeric($meta['source_revision'])) {
             $revision = get_post((int) $meta['source_revision']);
 
             // A recorded id says which revision to look at, not that the content
@@ -784,7 +806,7 @@ class UAMS_C2S_Converter
         // PHP compares an int with a numeric string numerically, and WordPress stores
         // the time as an int, so the cast changes no comparison below.
         // @pest-mutate-ignore: RemoveIntegerCast
-        $cutoff = ! empty($meta['time']) ? (int) $meta['time'] : 0;
+        $cutoff = ! empty($meta['time']) && is_numeric($meta['time']) ? (int) $meta['time'] : 0;
 
         foreach ($this->revisions($post->ID) as $revision) {
             // Anything saved after the conversion is a later edit, not a source.

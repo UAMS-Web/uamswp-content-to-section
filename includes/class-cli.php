@@ -56,7 +56,7 @@ class UAMS_C2S_CLI
      *     wp uams-c2s scan --post_type=page --format=ids
      *
      * @param  list<string>  $args  Positional arguments.
-     * @param  array<string,mixed>  $assoc_args  Associative arguments.
+     * @param  array<string,bool|string>  $assoc_args  Associative arguments.
      */
     public function scan($args, array $assoc_args): void
     {
@@ -98,7 +98,7 @@ class UAMS_C2S_CLI
             ];
         }
 
-        format_items($format, $rows, ['ID', 'type', 'status', 'blocks', 'geo', 'title']);
+        format_items(is_string($format) ? $format : 'table', $rows, ['ID', 'type', 'status', 'blocks', 'geo', 'title']);
     }
 
     /**
@@ -148,7 +148,7 @@ class UAMS_C2S_CLI
      *     wp uams-c2s convert --all --include-geo --demote-headings
      *
      * @param  list<string>  $args  Positional arguments.
-     * @param  array<string,mixed>  $assoc_args  Associative arguments.
+     * @param  array<string,bool|string>  $assoc_args  Associative arguments.
      */
     public function convert($args, array $assoc_args): void
     {
@@ -170,7 +170,7 @@ class UAMS_C2S_CLI
             }
 
             $status = get_flag_value($assoc_args, 'post_status', '');
-            $status = $status ? array_map(trim(...), explode(',', $status)) : '';
+            $status = is_string($status) && $status !== '' ? array_map(trim(...), explode(',', $status)) : '';
 
             if ($status && ! UAMS_C2S_Scanner::narrow_statuses($status)) {
                 WP_CLI::error(
@@ -286,7 +286,7 @@ class UAMS_C2S_CLI
      *     wp uams-c2s revert --all
      *
      * @param  list<string>  $args  Positional arguments.
-     * @param  array<string,mixed>  $assoc_args  Associative arguments.
+     * @param  array<string,bool|string>  $assoc_args  Associative arguments.
      */
     public function revert($args, $assoc_args): void
     {
@@ -377,7 +377,7 @@ class UAMS_C2S_CLI
      *     wp uams-c2s repair 42
      *
      * @param  list<string>  $args  Positional arguments.
-     * @param  array<string,mixed>  $assoc_args  Associative arguments.
+     * @param  array<string,bool|string>  $assoc_args  Associative arguments.
      */
     public function repair($args, $assoc_args): void
     {
@@ -424,7 +424,7 @@ class UAMS_C2S_CLI
                     'damaged' => $plan['damaged'] ? 'yes' : 'not visible',
                     'converted' => empty($plan['converted'])
                         ? 'no record'
-                        : sprintf('v%s', $plan['converted']['version'] ?? '?'),
+                        : sprintf('v%s', is_scalar($plan['converted']['version'] ?? null) ? $plan['converted']['version'] : '?'),
                     // A mismatch is refused by repair_post(), so the dry run has to
                     // report it as a blocker. Showing the revision it would have
                     // restored from, with an empty blocker, promised work the run
@@ -480,7 +480,7 @@ class UAMS_C2S_CLI
                 // A refusal is not the same as a no-op, and 'mismatch' in
                 // particular is the one an operator has to act on. A post that was
                 // already clean, or a reason not listed, says nothing.
-                if (isset($result['reason'], $reasons[$result['reason']])) {
+                if (isset($reasons[$result['reason']])) {
                     WP_CLI::warning(sprintf('#%d %s.', $id, $reasons[$result['reason']]));
                 }
 

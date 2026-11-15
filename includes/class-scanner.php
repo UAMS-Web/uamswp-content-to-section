@@ -185,7 +185,7 @@ class UAMS_C2S_Scanner
      * Exists so the question "the list said 60 and now says 0 -- what happened?"
      * can be answered from the Tools screen, without shell access.
      *
-     * @return array<string,mixed>
+     * @return array{content:int,section:int,conversions:int,blocks:int,backups:int,damaged:int,at_risk:int,last:int,versions:array<int|string,int>}
      */
     public static function status(): array
     {
@@ -216,15 +216,15 @@ class UAMS_C2S_Scanner
                 continue;
             }
 
-            if (! empty($record['time'])) {
+            if (! empty($record['time']) && is_numeric($record['time'])) {
                 $last = max($last, (int) $record['time']);
             }
 
-            $version = ! empty($record['version']) ? (string) $record['version'] : '?';
+            $version = ! empty($record['version']) && is_scalar($record['version']) ? (string) $record['version'] : '?';
 
             $versions[$version] = isset($versions[$version]) ? $versions[$version] + 1 : 1;
 
-            $blocks += isset($record['converted']) ? (int) $record['converted'] : 0;
+            $blocks += isset($record['converted']) && is_numeric($record['converted']) ? (int) $record['converted'] : 0;
         }
 
         ksort($versions);
@@ -268,7 +268,7 @@ class UAMS_C2S_Scanner
         foreach ((array) $rows as $row) {
             $record = maybe_unserialize($row->meta_value);
 
-            if (! is_array($record) || empty($record['version'])) {
+            if (! is_array($record) || empty($record['version']) || ! is_string($record['version'])) {
                 continue;
             }
 
@@ -362,12 +362,16 @@ class UAMS_C2S_Scanner
     /**
      * Walk a block tree counting Content blocks.
      *
-     * @param  array<array<string,mixed>>  $blocks  Parsed blocks.
+     * @param  array<mixed>  $blocks  Parsed blocks.
      * @param  array{blocks:int,geo:int}  $summary  Running tally, by reference.
      */
     protected static function tally(array $blocks, array &$summary): void
     {
         foreach ($blocks as $block) {
+            if (! is_array($block)) {
+                continue;
+            }
+
             if (isset($block['blockName']) && $block['blockName'] === UAMS_C2S_Converter::SOURCE_BLOCK) {
                 $summary['blocks']++;
 
@@ -383,7 +387,7 @@ class UAMS_C2S_Scanner
                 }
             }
 
-            if (! empty($block['innerBlocks'])) {
+            if (! empty($block['innerBlocks']) && is_array($block['innerBlocks'])) {
                 self::tally($block['innerBlocks'], $summary);
             }
         }

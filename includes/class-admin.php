@@ -125,11 +125,11 @@ class UAMS_C2S_Admin
         $ids = UAMS_C2S_Scanner::find();
 
         // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only view state.
-        $preview_id = isset($_GET['preview']) ? absint($_GET['preview']) : 0;
+        $preview_id = isset($_GET['preview']) && is_string($_GET['preview']) ? absint($_GET['preview']) : 0;
         // A made-up default names no message, so render_notice() prints nothing either way.
         // @pest-mutate-ignore: EmptyStringToNotEmpty
-        $notice = isset($_GET['uams_c2s_notice']) ? sanitize_text_field(wp_unslash($_GET['uams_c2s_notice'])) : '';
-        $paged = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
+        $notice = isset($_GET['uams_c2s_notice']) && is_string($_GET['uams_c2s_notice']) ? sanitize_text_field(wp_unslash($_GET['uams_c2s_notice'])) : '';
+        $paged = isset($_GET['paged']) && is_string($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         $per_page = 25;
@@ -356,8 +356,8 @@ class UAMS_C2S_Admin
 						        sprintf(
 						            /* translators: 1: plugin version, 2: date. */
 						            __('yes — v%1$s, %2$s', 'uams-c2s'),
-						            $record['version'] ?? '?',
-						            isset($record['time']) ? date_i18n('Y-m-d H:i', (int) $record['time']) : '?'
+						            is_scalar($record['version'] ?? null) ? $record['version'] : '?',
+						            isset($record['time']) && is_numeric($record['time']) ? date_i18n('Y-m-d H:i', (int) $record['time']) : '?'
 						        )
 						    );
 						    ?>
@@ -485,7 +485,7 @@ class UAMS_C2S_Admin
     /**
      * "5 by v1.0.0, 3 by v1.0.1", affected versions marked.
      *
-     * @param  array<string,int>  $versions  Version => conversion count.
+     * @param  array<int|string,int>  $versions  Version => conversion count.
      */
     protected function version_breakdown(array $versions): string
     {
@@ -871,7 +871,7 @@ class UAMS_C2S_Admin
     {
         $this->authorize('uams_c2s_save_options');
 
-        $list_format = isset($_POST['list_format']) ? sanitize_text_field(wp_unslash($_POST['list_format'])) : 'v3';
+        $list_format = isset($_POST['list_format']) && is_string($_POST['list_format']) ? sanitize_text_field(wp_unslash($_POST['list_format'])) : 'v3';
 
         update_option(
             self::OPTION,
@@ -890,7 +890,7 @@ class UAMS_C2S_Admin
      */
     public function handle_convert(): void
     {
-        $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
+        $post_id = isset($_POST['post_id']) && is_string($_POST['post_id']) ? absint($_POST['post_id']) : 0;
 
         $this->authorize('uams_c2s_convert_'.$post_id);
         $this->authorize_post($post_id);
@@ -910,7 +910,7 @@ class UAMS_C2S_Admin
      */
     public function handle_revert(): void
     {
-        $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
+        $post_id = isset($_POST['post_id']) && is_string($_POST['post_id']) ? absint($_POST['post_id']) : 0;
 
         $this->authorize('uams_c2s_revert_'.$post_id);
         $this->authorize_post($post_id);
@@ -925,7 +925,7 @@ class UAMS_C2S_Admin
      */
     public function handle_repair(): void
     {
-        $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
+        $post_id = isset($_POST['post_id']) && is_string($_POST['post_id']) ? absint($_POST['post_id']) : 0;
 
         $this->authorize('uams_c2s_repair_'.$post_id);
         $this->authorize_post($post_id);
@@ -951,7 +951,7 @@ class UAMS_C2S_Admin
             'not_converted' => 'norepair_empty',
         ];
 
-        if (isset($result['reason'], $notices[$result['reason']])) {
+        if (isset($notices[$result['reason']])) {
             $this->redirect($notices[$result['reason']]);
         }
 
@@ -971,7 +971,7 @@ class UAMS_C2S_Admin
         // Posts leave the queue as they are repaired, so always take the head of
         // the list; failures are parked to avoid an endless loop.
         $skipped = get_transient('uams_c2s_repair_skipped');
-        $skipped = is_array($skipped) ? $skipped : [];
+        $skipped = is_array($skipped) ? array_map(intval(...), array_values(array_filter($skipped, is_numeric(...)))) : [];
 
         foreach (array_slice($this->repair_queue($skipped), 0, self::BATCH_SIZE) as $id) {
             if (! current_user_can('edit_post', $id)) {
@@ -1045,7 +1045,7 @@ class UAMS_C2S_Admin
 
         // Narrowing happens in the scanner, which intersects against its own
         // allow-list, so a scope arriving here can only shrink the run.
-        $scope = isset($_POST['scope']) ? sanitize_key(wp_unslash($_POST['scope'])) : '';
+        $scope = isset($_POST['scope']) && is_string($_POST['scope']) ? sanitize_key(wp_unslash($_POST['scope'])) : '';
 
         if ($scope && ! UAMS_C2S_Scanner::narrow_statuses($scope)) {
             $this->redirect('error');
@@ -1054,7 +1054,7 @@ class UAMS_C2S_Admin
         // Posts drop out of the scan as they convert, so always take the head of
         // the list; geo-skipped posts are excluded to avoid an endless loop.
         $skipped = get_transient('uams_c2s_batch_skipped');
-        $skipped = is_array($skipped) ? $skipped : [];
+        $skipped = is_array($skipped) ? array_map(intval(...), array_values(array_filter($skipped, is_numeric(...)))) : [];
 
         $ids = UAMS_C2S_Scanner::find(
             [
