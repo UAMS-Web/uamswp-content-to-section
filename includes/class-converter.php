@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
  * Turns acf/uams-content blocks into acf/uams-section blocks.
  *
  * @phpstan-type Block array<string,mixed>
- * @phpstan-type Stats array<string,mixed>
+ * @phpstan-type Stats array{converted:int,skipped:int,notices:string[]}
  */
 class UAMS_C2S_Converter
 {
