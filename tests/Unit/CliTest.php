@@ -428,9 +428,9 @@ it('reverts every post that has a backup when --all is given', function (): void
 
         public array $prepared = [];
 
-        public function prepare($sql, $param): string
+        public function prepare($sql, ...$args): string
         {
-            $this->prepared[] = [$sql, $param];
+            $this->prepared[] = [$sql, $args];
 
             return 'PREPARED';
         }
@@ -443,7 +443,7 @@ it('reverts every post that has a backup when --all is given', function (): void
 
     uams_c2s_cli_run('revert', [], ['all' => true]);
 
-    expect($GLOBALS['wpdb']->prepared)->toBe([['SELECT post_id FROM wp_postmeta WHERE meta_key = %s', '_uams_c2s_backup']])
+    expect($GLOBALS['wpdb']->prepared)->toBe([['SELECT post_id FROM %i WHERE meta_key = %s', ['wp_postmeta', '_uams_c2s_backup']]])
         ->and(array_map(static fn (array $c): array => [$c[0], $c[1]], $world->calls))->toBe([['revert_post', 11], ['revert_post', 12]]);
 });
 
