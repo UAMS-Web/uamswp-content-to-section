@@ -138,7 +138,7 @@ it('escapes LIKE wildcards in the block name', function (): void {
 it('restricts a find to one post type, a status subset and an exclusion list', function (): void {
     $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_col' => [[]]]);
 
-    UAMS_C2S_Scanner::find(['post_type' => 'page', 'status' => 'draft', 'exclude' => ['5', -6]]);
+    UAMS_C2S_Scanner::find(['post_type' => 'page', 'status' => 'draft', 'exclude' => ['5', -6]]); // @phpstan-ignore argument.type (deliberate bad input)
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
@@ -149,7 +149,7 @@ it('restricts a find to one post type, a status subset and an exclusion list', f
 it('accepts a single excluded id', function (): void {
     $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_col' => [[]]]);
 
-    UAMS_C2S_Scanner::find(['exclude' => 9]);
+    UAMS_C2S_Scanner::find(['exclude' => 9]); // @phpstan-ignore argument.type (deliberate bad input)
 
     expect($GLOBALS['wpdb']->prepared[0][1])->toContain(9)
         ->and($GLOBALS['wpdb']->prepared[0][0])->toContain('ID NOT IN ( %d )');
@@ -158,7 +158,7 @@ it('accepts a single excluded id', function (): void {
 it('pages a find with a limit and an offset', function (): void {
     $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_col' => [[]]]);
 
-    UAMS_C2S_Scanner::find(['limit' => '10', 'offset' => '20']);
+    UAMS_C2S_Scanner::find(['limit' => '10', 'offset' => '20']); // @phpstan-ignore argument.type (deliberate bad input)
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
@@ -281,7 +281,7 @@ it('counts Content blocks, nested ones too, and the geo-targeted among them', fu
         ['blockName' => 'acf/uams-section', 'attrs' => []],
     ]);
 
-    expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 5, 'geo' => 2]);
+    expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 5, 'geo' => 2]); // @phpstan-ignore argument.type (deliberate bad input)
 });
 
 it('reports a whole-site picture of the conversion', function (): void {
@@ -390,7 +390,7 @@ it('skips a parsed block that is not an array, and inner blocks that are not a l
         ['blockName' => 'core/group', 'innerBlocks' => 'junk'],
     ]);
 
-    expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 1, 'geo' => 0]);
+    expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 1, 'geo' => 0]); // @phpstan-ignore argument.type (deliberate bad input)
 });
 
 it('reads an id from a database value, and a value that is not a scalar as 0', function (): void {

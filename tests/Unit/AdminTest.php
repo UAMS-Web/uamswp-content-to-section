@@ -48,7 +48,7 @@ function uams_c2s_admin_world(): object
         /** @var array<string,mixed> */
         public array $transients = [];
 
-        /** @var list<array{string,mixed}> */
+        /** @var list<array{0:mixed,1:mixed,2?:mixed}> */
         public array $setTransients = [];
 
         /** @var list<string> */
@@ -1397,7 +1397,10 @@ it('keeps each parked post once, and ignores a parked list that is not an array'
 
     uams_c2s_admin_halt(static fn () => (new UAMS_C2S_Admin)->handle_batch());
 
-    expect($world->finds[0]['exclude'])->toBe([]);
+    /** @var list<array<string,mixed>> $finds */
+    $finds = $world->finds;
+
+    expect($finds[0]['exclude'])->toBe([]);
 });
 
 it('chains to the next batch carrying the scope', function (): void {

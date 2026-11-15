@@ -62,7 +62,6 @@ parameters:
 
     excludePaths:
         analyseAndScan:
-            - tests
             - tests-legacy
             - vendor
 
@@ -74,7 +73,6 @@ parameters:
         - includes
         - uamswp-content-to-section.php
         - uninstall.php
-        - tests
 
     # Indexed for symbols but not analyzed. `php-stubs/wordpress-stubs` covers
     # core's runtime surface and stops there: `WP_UnitTestCase`, the factories

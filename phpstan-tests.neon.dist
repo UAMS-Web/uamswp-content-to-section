@@ -1,0 +1,67 @@
+# PHPStan for tests/ only. The main configuration (phpstan.neon.dist) analyzes the
+# plugin's own PHP at level 10; the tests are analyzed here at a lower level because
+# the Unit suite builds its WordPress and WP-CLI doubles from anonymous objects and
+# run-time function definitions, which PHPStan reports above level 5 by the hundred
+# (UAMS-Web/uamswp-content-to-section#52). Raise `level` ticket by ticket.
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    # Indexed for symbols, not analyzed. The main file defines the constants and
+    # functions the tests call; Patchwork's functions (`redefine()`, `relay()`)
+    # come from its package. WP_CLI is not listed: tests/Support/wp-cli-stubs.php
+    # declares the test double, and the real stubs would declare it twice.
+    scanFiles:
+        - uamswp-content-to-section.php
+        - vendor/antecedent/patchwork/Patchwork.php
+    phpVersion:
+        min: 80200
+        max: 80400
+    level: 5
+    # Files that extend or call WordPress' own test classes (`WP_UnitTestCase`,
+    # `tests_add_filter()`) are not analyzed: those classes ship in wp-phpunit,
+    # which only the Integration suite's own Composer setup installs, and an
+    # unknown parent class cannot be pinned with `ignoreErrors`. The vendor
+    # directory is optional (`(?)`) because that setup is not installed in every
+    # run, the CI job for this analysis included. Remove the two file entries when
+    # the tests configuration indexes wp-phpunit.
+    excludePaths:
+        analyseAndScan:
+            - tests/Integration/vendor (?)
+        analyse:
+            - tests/Integration/bootstrap.php
+            - tests/Support/IntegrationTestCase.php
+    paths:
+        - tests
+    # Indexed for symbols, not analyzed: the plugin classes the tests call.
+    scanDirectories:
+        - includes
+    bootstrapFiles:
+        - phpstan-bootstrap.php
+    tmpDir: .phpstan-tests
+    ignoreErrors:
+        # Pest routes its public API through classes it tags @internal; calling
+        # them from a test is Pest's intended use. Remove this entry when Pest
+        # stops tagging them.
+        -
+            identifier: method.internalClass
+            message: '#of internal class Pest\\#'
+            path: tests
+        # `$this` inside a closure passed to `uses()->beforeEach()` / `afterEach()`
+        # is bound by Pest at runtime, which PHPStan cannot see.
+        -
+            identifier: variable.undefined
+            message: '#^Undefined variable: \$this$#'
+            path: tests/Pest.php
+        # Patchwork binds `$this` inside a closure given to `redefine()` to the
+        # intercepted call, which PHPStan cannot see. Remove this entry when the
+        # closures read the call through `relay()` arguments instead.
+        -
+            identifier: variable.undefined
+            message: '#^Undefined variable: \$this$#'
+            paths:
+                - tests/Unit/AdminTest.php
+                - tests/Unit/CliTest.php
+                - tests/Unit/ConverterTest.php
