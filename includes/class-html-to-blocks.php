@@ -494,6 +494,9 @@ class UAMS_C2S_HTML_To_Blocks
         $items = [];
 
         foreach ($node->childNodes as $child) {
+            // A text or comment node's name is '#text' or '#comment', never 'li', so the
+            // element check only narrows the type for the analyzer.
+            // @pest-mutate-ignore: InstanceOfToTrue
             if ($child instanceof DOMElement && $child->nodeName === 'li') {
                 $items[] = $this->list_item($child);
             }
@@ -534,6 +537,8 @@ class UAMS_C2S_HTML_To_Blocks
         $content = '';
 
         foreach ($node->childNodes as $child) {
+            // Same as in list_block(): only an element can be named 'ul' or 'ol'.
+            // @pest-mutate-ignore: InstanceOfToTrue
             if ($child instanceof DOMElement
                 && in_array($child->nodeName, ['ul', 'ol'], true)
             ) {
@@ -663,10 +668,9 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function figure(DOMElement $node): array
     {
-        $images = $node->getElementsByTagName('img');
+        $img = $node->getElementsByTagName('img')->item(0);
 
-        if ($images->length > 0) {
-            $img = $images->item(0);
+        if ($img instanceof DOMElement) {
             $link = null;
             $parent = $img->parentNode;
             $caption = '';
@@ -678,19 +682,19 @@ class UAMS_C2S_HTML_To_Blocks
                 $link = $parent->getAttribute('href');
             }
 
-            $captions = $node->getElementsByTagName('figcaption');
+            $figcaption = $node->getElementsByTagName('figcaption')->item(0);
 
-            if ($captions->length > 0) {
-                $caption = trim($this->inner_html($captions->item(0)));
+            if ($figcaption instanceof DOMElement) {
+                $caption = trim($this->inner_html($figcaption));
             }
 
             return [$this->image_block($img, $link, $caption, $this->class_list($node))];
         }
 
-        $iframes = $node->getElementsByTagName('iframe');
+        $iframe = $node->getElementsByTagName('iframe')->item(0);
 
-        if ($iframes->length > 0) {
-            return [$this->iframe($iframes->item(0))];
+        if ($iframe instanceof DOMElement) {
+            return [$this->iframe($iframe)];
         }
 
         $this->note(__('A <figure> with no image or iframe was preserved as a Custom HTML block.', 'uams-c2s'));
@@ -837,13 +841,13 @@ class UAMS_C2S_HTML_To_Blocks
      */
     protected function preformatted(DOMElement $node): array
     {
-        $codes = $node->getElementsByTagName('code');
+        $code = $node->getElementsByTagName('code')->item(0);
 
-        if ($codes->length > 0) {
+        if ($code instanceof DOMElement) {
             return $this->block(
                 'core/code',
                 [],
-                '<pre class="wp-block-code"><code>'.trim($this->inner_html($codes->item(0))).'</code></pre>'
+                '<pre class="wp-block-code"><code>'.trim($this->inner_html($code)).'</code></pre>'
             );
         }
 
@@ -991,26 +995,56 @@ class UAMS_C2S_HTML_To_Blocks
      * Serialize a node including its own tag.
      *
      * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
      */
     protected function outer_html(DOMNode $node): string
     {
-        return (string) $node->ownerDocument->saveHTML($node);
+        // saveHTML() returns false only when serialization fails, which a node that
+        // came out of the parser does not do; the cast only satisfies the analyzer's
+        // `string|false`, and removing it changes nothing a test or a site can see.
+        // @pest-mutate-ignore: RemoveStringCast
+        return (string) $this->owner_document($node)->saveHTML($node);
     }
 
     /**
      * Serialize a node's children.
      *
      * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
      */
     protected function inner_html(DOMNode $node): string
     {
+        $document = $this->owner_document($node);
         $html = '';
 
         foreach ($node->childNodes as $child) {
-            $html .= $node->ownerDocument->saveHTML($child);
+            $html .= $document->saveHTML($child);
         }
 
         return $html;
+    }
+
+    /**
+     * The document a node belongs to.
+     *
+     * Only a DOMDocument has none, and no caller hands one to the serializers, so
+     * reaching the exception means a bug in the caller rather than bad content.
+     *
+     * @param  DOMNode  $node  Node.
+     *
+     * @throws LogicException When the node has no owner document.
+     */
+    protected function owner_document(DOMNode $node): DOMDocument
+    {
+        $document = $node->ownerDocument;
+
+        if (! $document instanceof DOMDocument) {
+            throw new LogicException('Cannot serialize a node with no owner document; a DOMDocument was passed where an element or node is required.');
+        }
+
+        return $document;
     }
 
     /**

@@ -144,7 +144,7 @@ function uams_c2s_admin_world(): object
     redefine('UAMS_C2S_Scanner::find_damaged', static fn (): array => $world->damaged);
     redefine('UAMS_C2S_Scanner::find_at_risk', static fn (): array => $world->atRisk);
     redefine('UAMS_C2S_Scanner::narrow_statuses', static fn ($status): mixed => $world->narrowed);
-    redefine('UAMS_C2S_Scanner::summarize', static fn ($post): array => $world->summaries[$post?->ID] ?? ['blocks' => 0, 'geo' => 0]);
+    redefine('UAMS_C2S_Scanner::summarize', static fn ($post): array => $world->summaries[$post] ?? ['blocks' => 0, 'geo' => 0]);
 
     redefine('UAMS_C2S_Converter::preview_post', function ($id) use ($world) {
         $world->built[] = $this->args;
