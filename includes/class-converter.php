@@ -62,7 +62,7 @@ class UAMS_C2S_Converter
      *
      * @var array<string,mixed>
      */
-    protected $args;
+    protected array $args;
 
     /**
      * Constructor.
@@ -71,7 +71,7 @@ class UAMS_C2S_Converter
      */
     public function __construct(array $args = [])
     {
-        $this->args = wp_parse_args($args, uams_c2s_default_args());
+        $this->args = array_merge(uams_c2s_default_args(), $args);
     }
 
     /* ---------------------------------------------------------------------
@@ -505,7 +505,7 @@ class UAMS_C2S_Converter
      * the conversion.
      *
      * @param  int|WP_Post  $post  Post.
-     * @return array{post_id:int,damaged:bool,at_risk:bool,source:string,label:string,verified:string,error:string,sample:string,converted:array<string,mixed>}
+     * @return array{post_id:int,damaged:bool,at_risk:bool,source:string,label:string,verified:string,error:string,sample:string,converted:array<mixed>}
      */
     public function repair_plan($post): array
     {

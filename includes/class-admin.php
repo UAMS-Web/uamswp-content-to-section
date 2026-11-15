@@ -101,11 +101,11 @@ class UAMS_C2S_Admin
      *
      * @return array<string,mixed>
      */
-    public function options()
+    public function options(): array
     {
         $stored = get_option(self::OPTION, []);
 
-        return wp_parse_args(is_array($stored) ? $stored : [], uams_c2s_default_args());
+        return array_merge(uams_c2s_default_args(), is_array($stored) ? $stored : []);
     }
 
     /* ---------------------------------------------------------------------

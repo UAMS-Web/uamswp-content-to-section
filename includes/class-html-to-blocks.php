@@ -25,7 +25,7 @@ class UAMS_C2S_HTML_To_Blocks
      *
      * @var array<string,mixed>
      */
-    protected $args;
+    protected array $args;
 
     /**
      * Human-readable notes about lossy or noteworthy conversions.
@@ -41,7 +41,7 @@ class UAMS_C2S_HTML_To_Blocks
      */
     public function __construct(array $args = [])
     {
-        $this->args = wp_parse_args($args, uams_c2s_default_args());
+        $this->args = array_merge(uams_c2s_default_args(), $args);
     }
 
     /**

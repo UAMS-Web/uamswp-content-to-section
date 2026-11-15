@@ -94,6 +94,7 @@ class UAMS_C2S_Scanner
      */
     public static function find(array $args = []): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $args = wp_parse_args(
@@ -130,7 +131,7 @@ class UAMS_C2S_Scanner
         }
 
         if (! empty($args['exclude'])) {
-            $exclude = array_map(absint(...), (array) $args['exclude']);
+            $exclude = array_map(static fn ($id): int => absint($id), (array) $args['exclude']);
             // implode() ignores the keys, so the start index of array_fill() cannot show in
             // the result: the mutants that move it are equivalent.
             // @pest-mutate-ignore: IncrementInteger, DecrementInteger
@@ -150,7 +151,7 @@ class UAMS_C2S_Scanner
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
 
-        return array_map(absint(...), (array) $ids);
+        return array_map(static fn ($id): int => absint($id), (array) $ids);
     }
 
     /**
@@ -160,6 +161,7 @@ class UAMS_C2S_Scanner
      */
     public static function count_containing($needle): int
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $statuses = self::statuses();
@@ -189,6 +191,7 @@ class UAMS_C2S_Scanner
      */
     public static function status(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $records = $wpdb->get_col(
@@ -254,6 +257,7 @@ class UAMS_C2S_Scanner
      */
     public static function find_at_risk(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $rows = $wpdb->get_results(
@@ -292,6 +296,7 @@ class UAMS_C2S_Scanner
      */
     public static function find_damaged(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $statuses = self::statuses();

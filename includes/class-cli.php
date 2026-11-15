@@ -290,6 +290,7 @@ class UAMS_C2S_CLI
      */
     public function revert($args, $assoc_args): void
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $ids = array_map(absint(...), $args);
@@ -300,7 +301,7 @@ class UAMS_C2S_CLI
             }
 
             $ids = array_map(
-                absint(...),
+                static fn ($id): int => absint($id),
                 $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",
