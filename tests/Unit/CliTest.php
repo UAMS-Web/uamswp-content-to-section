@@ -593,3 +593,38 @@ it('warns about each damaged post with no conversion record, naming what matched
     expect(WP_CLI::messages('warning'))->toBe(['#4 is damaged but carries no conversion record, so this plugin did not cause it. Matched: around u003c here'])
         ->and(WP_CLI::messages('success'))->toBe(['Dry run. Nothing was saved.']);
 });
+
+/* ---------------------------------------------------------------------
+ * Flags and records that are not the shape a well-formed one has
+ * ------------------------------------------------------------------ */
+
+it('renders a table when the format flag is not a string', function (): void {
+    $world = uams_c2s_cli_world();
+    $world->found = [7];
+
+    uams_c2s_cli_run('scan', [], ['format' => true]);
+
+    expect(WP_CLI::$calls[0][1][0])->toBe('table');
+});
+
+it('does not narrow the statuses when the status flag is not a string', function (): void {
+    $world = uams_c2s_cli_world();
+    $world->found = [5];
+
+    uams_c2s_cli_run('convert', [], ['all' => true, 'post_status' => true]);
+
+    expect($world->finds)->toBe([['post_type' => '', 'status' => '']])
+        ->and($world->narrowed)->toBe([]);
+});
+
+it('shows no version for a conversion record whose version is not a scalar', function (): void {
+    $world = uams_c2s_cli_world();
+    $world->posts = [1 => ['type' => 'post', 'status' => 'publish', 'title' => 'One']];
+    $world->plans = [1 => ['damaged' => true, 'converted' => ['version' => ['x']], 'error' => '', 'verified' => 'exact', 'label' => 'revision #1', 'sample' => 'S1']];
+
+    uams_c2s_cli_run('repair', ['1'], ['dry-run' => true]);
+
+    $table = array_values(array_filter(WP_CLI::$calls, static fn (array $c): bool => $c[0] === 'format_items'))[0][1];
+
+    expect($table[1][0]['converted'])->toBe('v?');
+});

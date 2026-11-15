@@ -1632,3 +1632,88 @@ it('carries every field into the next batch, and asks for the nonce without the 
     expect($html)->toContain('<input type="hidden" name="a" value="1" /><input type="hidden" name="b" value="2" />')
         ->and($world->nonceFields)->toBe([['uams_c2s_batch', '_wpnonce', true, false]]);
 });
+
+/* ---------------------------------------------------------------------
+ * Input that is not the shape a well-formed request or record has
+ * ------------------------------------------------------------------ */
+
+it('reads a preview id that arrives as an array as no preview', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->status = uams_c2s_admin_status();
+    $world->found = [4, 7];
+    $_GET['preview'] = ['7'];
+
+    $html = uams_c2s_admin_render($world);
+
+    expect($html)->not->toContain('uams-c2s-current')
+        ->and($world->calls)->toBe([]);
+});
+
+it('shows no notice when the notice arrives as an array', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->status = uams_c2s_admin_status();
+    $_GET['uams_c2s_notice'] = ['saved'];
+
+    expect(uams_c2s_admin_render($world))->not->toContain('is-dismissible');
+});
+
+it('shows the first page when the page number arrives as an array', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->status = uams_c2s_admin_status();
+    $world->found = range(1, 30);
+    $_GET['paged'] = ['2'];
+
+    $html = uams_c2s_admin_render($world);
+
+    expect($html)->toContain('#25')->and($html)->not->toContain('#26<')
+        ->and($world->paginated[0]['current'])->toBe(1);
+});
+
+it('saves the default list format when the format arrives as an array', function (): void {
+    $world = uams_c2s_admin_world();
+    $_POST = ['list_format' => ['v2']];
+
+    uams_c2s_admin_halt(static fn () => (new UAMS_C2S_Admin)->handle_save_options());
+
+    expect($world->updated[0][1]['list_format'])->toBe('v3');
+});
+
+it('refuses a single-post handler when the post id arrives as an array', function (string $method): void {
+    $world = uams_c2s_admin_world();
+    $_POST['post_id'] = ['7'];
+
+    $halt = uams_c2s_admin_halt(static fn () => (new UAMS_C2S_Admin)->{$method}());
+
+    expect($halt)->toBe('die: You cannot edit that post.')
+        ->and($world->calls)->toBe([]);
+})->with(['handle_convert', 'handle_revert', 'handle_repair']);
+
+it('runs the batch unscoped when the scope arrives as an array', function (): void {
+    $world = uams_c2s_admin_world();
+    $_POST['scope'] = ['draft'];
+
+    uams_c2s_admin_halt(static fn () => (new UAMS_C2S_Admin)->handle_batch());
+
+    expect($world->finds[0]['status'])->toBe('');
+});
+
+it('ignores parked ids that are not numbers, and reads numeric strings as ids', function (string $transient, string $method): void {
+    $world = uams_c2s_admin_world();
+    $world->found = static fn (array $args): array => isset($args['limit']) ? [] : [];
+    $world->transients = [$transient => ['3', 'junk', ['x'], 7]];
+
+    uams_c2s_admin_halt(static fn () => (new UAMS_C2S_Admin)->{$method}());
+
+    expect($world->finds[0]['exclude'] ?? null)->toBe([3, 7]);
+})->with([
+    ['uams_c2s_batch_skipped', 'handle_batch'],
+]);
+
+it('shows a placeholder for a conversion record whose version or time is not a scalar or a number', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->status = uams_c2s_admin_status();
+    $world->damaged = [5];
+    $world->plans = [5 => uams_c2s_admin_plan(['converted' => ['version' => ['x'], 'time' => 'soon']])];
+
+    expect(uams_c2s_admin_render($world))->toContain('v?, ?');
+});

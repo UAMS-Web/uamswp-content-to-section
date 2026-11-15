@@ -1835,6 +1835,13 @@ it('does not treat a section level that is not a number as a level', function ()
         ->and($result['notices'])->toBe([]);
 });
 
+it('reads a section level that is an array as no section level', function (): void {
+    $result = uams_c2s_h2b('<h2>T</h2>', ['max_heading' => [2], 'demote_headings' => true]);
+
+    expect($result['notices'])->toBe([])
+        ->and($result['blocks'][0])->toContain('<h2 class=\"wp-block-heading\">T</h2>');
+});
+
 it('keeps an author class that sits among the alignment classes', function (): void {
     $result = uams_c2s_h2b('<p class="a text-center b">x</p>');
 

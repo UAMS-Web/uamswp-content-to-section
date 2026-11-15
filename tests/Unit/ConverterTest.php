@@ -1607,3 +1607,67 @@ it('reads a revision date as GMT whatever the server time zone is', function ():
         date_default_timezone_set($zone);
     }
 });
+
+/* ---------------------------------------------------------------------
+ * Stored values that are not the shape a well-formed record has
+ * ------------------------------------------------------------------ */
+
+it('reads a body field that is not a scalar as an empty body', function (): void {
+    uams_c2s_stub_parser([]);
+    $stats = ['converted' => 0, 'skipped' => 0, 'notices' => []];
+
+    $section = (new UAMS_C2S_Converter)->convert_block(
+        uams_c2s_content_block(uams_c2s_data(['content_content' => ['<p>x</p>']], ['anchor' => 'a'])),
+        $stats
+    );
+
+    expect($section['innerBlocks'])->toBe([])
+        ->and($stats['notices'])->toBe(['A Content block had an empty body; the Section block was created with no inner blocks.']);
+});
+
+it('reports no converting version for a record whose version is not a scalar', function (): void {
+    $world = uams_c2s_world();
+    $world->meta[11]['_uams_c2s_converted'] = ['version' => ['1.0.1']];
+
+    expect((new UAMS_C2S_Converter)->converted_by(11))->toBe('');
+});
+
+it('treats a stored backup that is not a scalar as no backup when reverting', function (): void {
+    $world = uams_c2s_world();
+    $world->post(105, 'converted content');
+    $world->meta[105] = ['_uams_c2s_backup' => ['x']];
+
+    $result = (new UAMS_C2S_Converter)->revert_post(105);
+
+    expect($result)->toBeInstanceOf(WP_Error::class)
+        ->and($result->get_error_code())->toBe('uams_c2s_no_backup')
+        ->and($world->posts[105]->post_content)->toBe('converted content');
+});
+
+it('cannot compare a restore with a stored backup that is not a scalar', function (): void {
+    $world = uams_c2s_world();
+    $world->meta[106] = ['_uams_c2s_backup' => ['x']];
+    $matches = new ReflectionMethod(UAMS_C2S_Converter::class, 'matches_backup');
+
+    expect($matches->invoke(new UAMS_C2S_Converter, 106, 'x'))->toBe('unknown');
+});
+
+it('searches for a revision when the recorded revision id is not a number', function (): void {
+    $world = uams_c2s_world();
+    $world->post(107, 'converted');
+
+    $good = $world->revision(107, 971, UAMS_C2S_OLD_CONTENT, '2020-01-01 00:00:00');
+    $world->meta[107]['_uams_c2s_converted'] = ['source_revision' => ['971']];
+
+    expect((new UAMS_C2S_Converter)->pre_conversion_revision(107))->toBe($good);
+});
+
+it('searches every revision when the recorded time is not a number', function (): void {
+    $world = uams_c2s_world();
+    $world->post(108, 'converted');
+
+    $future = $world->revision(108, 981, UAMS_C2S_OLD_CONTENT, '2999-01-01 00:00:00');
+    $world->meta[108]['_uams_c2s_converted'] = ['time' => 'soon'];
+
+    expect((new UAMS_C2S_Converter)->pre_conversion_revision(108))->toBe($future);
+});

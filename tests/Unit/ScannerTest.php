@@ -356,3 +356,39 @@ it('reports an empty site when the record query returns nothing', function (): v
         'versions' => [],
     ]);
 });
+
+it('reads a conversion record whose fields are not scalars as an unknown version, no time and no blocks', function (): void {
+    $GLOBALS['wpdb'] = uams_c2s_fake_wpdb([
+        'get_col' => [[serialize(['version' => ['x'], 'time' => ['x'], 'converted' => ['x']])]],
+        'get_var' => ['0', '0', '0'],
+        'get_results' => [[], []],
+    ]);
+
+    $status = UAMS_C2S_Scanner::status();
+
+    expect($status['versions'])->toBe(['?' => 1])
+        ->and($status['last'])->toBe(0)
+        ->and($status['blocks'])->toBe(0);
+});
+
+it('does not treat a record whose version is not a string as at risk', function (): void {
+    $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_results' => [[
+        (object) ['post_id' => '4', 'meta_value' => serialize(['version' => ['1.0.0']])],
+        (object) ['post_id' => '5', 'meta_value' => serialize(['version' => 100])],
+        (object) ['post_id' => '8', 'meta_value' => serialize(['version' => '1.0.0'])],
+    ]]]);
+
+    expect(UAMS_C2S_Scanner::find_at_risk())->toBe([8]);
+});
+
+it('skips a parsed block that is not an array, and inner blocks that are not a list', function (): void {
+    $post = (object) ['post_content' => 'raw'];
+    Functions\expect('get_post')->once()->andReturn($post);
+    Functions\expect('parse_blocks')->once()->with('raw')->andReturn([
+        'junk',
+        ['blockName' => 'acf/uams-content', 'attrs' => []],
+        ['blockName' => 'core/group', 'innerBlocks' => 'junk'],
+    ]);
+
+    expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 1, 'geo' => 0]);
+});
