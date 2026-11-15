@@ -1127,18 +1127,18 @@ class UAMS_C2S_Admin
      * The interstitial's markup, with every dynamic part already escaped.
      *
      * @param  int  $remaining  Posts still to process.
-     * @param  array<string,mixed>  $args  Same shape as render_batch_progress().
+     * @param  array{action?:string,title?:string,progress?:string,fields?:array<string,string>}  $args  Same shape as render_batch_progress().
      */
     protected function batch_progress_markup($remaining, array $args): string
     {
-        $args = wp_parse_args(
-            $args,
+        $args = array_merge(
             [
                 'action' => 'uams_c2s_batch',
                 'title' => __('Converting…', 'uams-c2s'),
                 'progress' => '',
                 'fields' => [],
-            ]
+            ],
+            $args
         );
 
         $progress = $args['progress'] ?: _n('%d post left to convert…', '%d posts left to convert…', $remaining, 'uams-c2s');

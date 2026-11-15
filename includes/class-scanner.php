@@ -81,15 +81,11 @@ class UAMS_C2S_Scanner
     /**
      * IDs of posts containing at least one Content block.
      *
-     * @param  array<string,mixed>  $args  {
-     *                                     Optional. Query arguments.
-     *
-     * @type string $post_type Restrict to one post type.
-     * @type int $limit     Maximum rows. 0 for all.
-     * @type int $offset    Offset.
-     * @type int[] $exclude   Post IDs to skip.
-     *             }
-     *
+     * @param  array{post_type?:string,status?:string|string[],limit?:int,offset?:int,exclude?:int[]}  $args  Optional query arguments:
+     *                                                                                                        `post_type` restricts to one post type, `status`
+     *                                                                                                        narrows the statuses, `limit` is the maximum rows
+     *                                                                                                        (0 for all), `offset` the offset and `exclude` the
+     *                                                                                                        post IDs to skip.
      * @return int[]
      */
     public static function find(array $args = []): array
@@ -97,8 +93,7 @@ class UAMS_C2S_Scanner
         /** @var wpdb $wpdb */
         global $wpdb;
 
-        $args = wp_parse_args(
-            $args,
+        $args = array_merge(
             [
                 'post_type' => '',
                 'status' => '',
@@ -106,7 +101,8 @@ class UAMS_C2S_Scanner
                 // @pest-mutate-ignore: DecrementInteger
                 'limit' => 0,
                 'offset' => 0,
-            ]
+            ],
+            $args
         );
 
         $statuses = self::narrow_statuses($args['status']);
