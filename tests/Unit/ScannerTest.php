@@ -42,8 +42,13 @@ function uams_c2s_fake_wpdb(array $answers = []): object
             return addcslashes((string) $text, '_%\\');
         }
 
-        public function prepare($sql, $params = []): string
+        /**
+         * Records the arguments the way the call spells them: one array argument as that
+         * array, any other call as the list of its arguments.
+         */
+        public function prepare($sql, ...$args): string
         {
+            $params = count($args) === 1 ? $args[0] : $args;
             $this->prepared[] = [$sql, $params];
 
             return $sql.' |'.json_encode($params);
@@ -123,8 +128,8 @@ it('queries every scannable status for posts holding a Content block', function 
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
-    expect($sql)->toBe('SELECT ID FROM wp_posts WHERE post_content LIKE %s AND post_status IN ( %s, %s, %s, %s, %s ) ORDER BY post_type ASC, ID ASC')
-        ->and($params)->toBe(['%<!-- wp:acf/uams-content%', 'publish', 'draft', 'pending', 'future', 'private']);
+    expect($sql)->toBe('SELECT ID FROM %i WHERE post_content LIKE %s AND post_status IN ( %s, %s, %s, %s, %s ) ORDER BY post_type ASC, ID ASC')
+        ->and($params)->toBe(['wp_posts', '%<!-- wp:acf/uams-content%', 'publish', 'draft', 'pending', 'future', 'private']);
 });
 
 it('escapes LIKE wildcards in the block name', function (): void {
@@ -132,7 +137,7 @@ it('escapes LIKE wildcards in the block name', function (): void {
 
     UAMS_C2S_Scanner::find();
 
-    expect($GLOBALS['wpdb']->prepared[0][1][0])->toBe('%'.addcslashes('<!-- wp:acf/uams-content', '_%\\').'%');
+    expect($GLOBALS['wpdb']->prepared[0][1][1])->toBe('%'.addcslashes('<!-- wp:acf/uams-content', '_%\\').'%');
 });
 
 it('restricts a find to one post type, a status subset and an exclusion list', function (): void {
@@ -142,8 +147,8 @@ it('restricts a find to one post type, a status subset and an exclusion list', f
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
-    expect($sql)->toBe('SELECT ID FROM wp_posts WHERE post_content LIKE %s AND post_status IN ( %s ) AND post_type = %s AND ID NOT IN ( %d, %d ) ORDER BY post_type ASC, ID ASC')
-        ->and($params)->toBe(['%<!-- wp:acf/uams-content%', 'draft', 'page', 5, 6]);
+    expect($sql)->toBe('SELECT ID FROM %i WHERE post_content LIKE %s AND post_status IN ( %s ) AND post_type = %s AND ID NOT IN ( %d, %d ) ORDER BY post_type ASC, ID ASC')
+        ->and($params)->toBe(['wp_posts', '%<!-- wp:acf/uams-content%', 'draft', 'page', 5, 6]);
 });
 
 it('accepts a single excluded id', function (): void {
@@ -203,8 +208,8 @@ it('counts posts whose content holds a literal string, in the scannable statuses
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
-    expect($sql)->toBe('SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE %s AND post_status IN ( %s, %s, %s, %s, %s )')
-        ->and($params)->toBe(['%50\\%\\_off%', 'publish', 'draft', 'pending', 'future', 'private']);
+    expect($sql)->toBe('SELECT COUNT(*) FROM %i WHERE post_content LIKE %s AND post_status IN ( %s, %s, %s, %s, %s )')
+        ->and($params)->toBe(['wp_posts', '%50\\%\\_off%', 'publish', 'draft', 'pending', 'future', 'private']);
 });
 
 it('counts matching posts per status and omits statuses with none', function (): void {
@@ -212,7 +217,7 @@ it('counts matching posts per status and omits statuses with none', function ():
 
     expect(UAMS_C2S_Scanner::status_counts())->toBe(['publish' => 2, 'pending' => 1])
         ->and($GLOBALS['wpdb']->prepared)->toHaveCount(5)
-        ->and(array_map(static fn (array $call): array => array_slice($call[1], 1), $GLOBALS['wpdb']->prepared))
+        ->and(array_map(static fn (array $call): array => array_slice($call[1], 2), $GLOBALS['wpdb']->prepared))
         ->toBe([['publish'], ['draft'], ['pending'], ['future'], ['private']]);
 });
 
@@ -226,7 +231,7 @@ it('finds posts converted by a version that did not slash its writes', function 
     ]]]);
 
     expect(UAMS_C2S_Scanner::find_at_risk())->toBe([4, 8])
-        ->and($GLOBALS['wpdb']->prepared[0][1])->toBe('_uams_c2s_converted');
+        ->and($GLOBALS['wpdb']->prepared[0])->toBe(['SELECT post_id, meta_value FROM %i WHERE meta_key = %s ORDER BY post_id ASC', ['wp_postmeta', '_uams_c2s_converted']]);
 });
 
 it('returns nothing at risk when no conversion record exists', function (): void {
@@ -246,8 +251,9 @@ it('prefilters damaged posts by the five escape markers, then confirms with the 
 
     [$sql, $params] = $GLOBALS['wpdb']->prepared[0];
 
-    expect($sql)->toBe('SELECT ID, post_content FROM wp_posts WHERE ( post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s ) AND post_status IN ( %s, %s, %s, %s, %s ) ORDER BY post_type ASC, ID ASC')
+    expect($sql)->toBe('SELECT ID, post_content FROM %i WHERE ( post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s ) AND post_status IN ( %s, %s, %s, %s, %s ) ORDER BY post_type ASC, ID ASC')
         ->and($params)->toBe([
+            'wp_posts',
             '%u0022%', '%u0026%', '%u002d%', '%u003c%', '%u003e%',
             'publish', 'draft', 'pending', 'future', 'private',
         ]);
@@ -316,10 +322,10 @@ it('reports a whole-site picture of the conversion', function (): void {
         'versions' => ['1.0.0' => 1, '1.0.2' => 2, '1.5' => 1, '?' => 1],
     ])
         ->and($status['last'])->toBeInt()
-        ->and($GLOBALS['wpdb']->prepared[0][1])->toBe('_uams_c2s_converted')
-        ->and($GLOBALS['wpdb']->prepared[1][1])->toBe('_uams_c2s_backup')
-        ->and($GLOBALS['wpdb']->prepared[2][1][0])->toBe('%<!-- wp:acf/uams-content%')
-        ->and($GLOBALS['wpdb']->prepared[3][1][0])->toBe('%<!-- wp:acf/uams-section%');
+        ->and($GLOBALS['wpdb']->prepared[0][1])->toBe(['wp_postmeta', '_uams_c2s_converted'])
+        ->and($GLOBALS['wpdb']->prepared[1][1])->toBe(['wp_postmeta', '_uams_c2s_backup'])
+        ->and($GLOBALS['wpdb']->prepared[2][1][1])->toBe('%<!-- wp:acf/uams-content%')
+        ->and($GLOBALS['wpdb']->prepared[3][1][1])->toBe('%<!-- wp:acf/uams-section%');
 });
 
 it('reports zero last-conversion time and blocks when no record carries them', function (): void {

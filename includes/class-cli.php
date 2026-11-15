@@ -308,7 +308,8 @@ class UAMS_C2S_CLI
                 UAMS_C2S_Scanner::id_from(...),
                 $wpdb->get_col(
                     $wpdb->prepare(
-                        "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",
+                        'SELECT post_id FROM %i WHERE meta_key = %s',
+                        $wpdb->postmeta,
                         UAMS_C2S_Converter::BACKUP_META
                     )
                 )

@@ -118,8 +118,8 @@ class UAMS_C2S_Scanner
 
         $needle = '%'.$wpdb->esc_like('<!-- wp:'.UAMS_C2S_Converter::SOURCE_BLOCK).'%';
 
-        $sql = "SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
-        $params = array_merge([$needle], $statuses);
+        $sql = "SELECT ID FROM %i WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
+        $params = array_merge([$wpdb->posts, $needle], $statuses);
 
         if ($args['post_type']) {
             $sql .= ' AND post_type = %s';
@@ -177,11 +177,11 @@ class UAMS_C2S_Scanner
         $status_slots = implode(', ', array_fill(0, count($statuses), '%s'));
 
         $params = array_merge(
-            ['%'.$wpdb->esc_like($needle).'%'],
+            [$wpdb->posts, '%'.$wpdb->esc_like($needle).'%'],
             $statuses
         );
 
-        $sql = "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
+        $sql = "SELECT COUNT(*) FROM %i WHERE post_content LIKE %s AND post_status IN ( {$status_slots} )";
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         return (int) $wpdb->get_var($wpdb->prepare($sql, $params));
@@ -202,14 +202,16 @@ class UAMS_C2S_Scanner
 
         $records = $wpdb->get_col(
             $wpdb->prepare(
-                "SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+                'SELECT meta_value FROM %i WHERE meta_key = %s',
+                $wpdb->postmeta,
                 UAMS_C2S_Converter::CONVERTED_META
             )
         );
 
         $backups = (int) $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+                'SELECT COUNT(*) FROM %i WHERE meta_key = %s',
+                $wpdb->postmeta,
                 UAMS_C2S_Converter::BACKUP_META
             )
         );
@@ -272,7 +274,8 @@ class UAMS_C2S_Scanner
 
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY post_id ASC",
+                'SELECT post_id, meta_value FROM %i WHERE meta_key = %s ORDER BY post_id ASC',
+                $wpdb->postmeta,
                 UAMS_C2S_Converter::CONVERTED_META
             )
         );
@@ -325,7 +328,7 @@ class UAMS_C2S_Scanner
         // @pest-mutate-ignore: IncrementInteger, DecrementInteger
         $clauses = implode(' OR ', array_fill(0, count($markers), 'post_content LIKE %s'));
 
-        $params = [];
+        $params = [$wpdb->posts];
 
         foreach ($markers as $marker) {
             $params[] = '%'.$wpdb->esc_like($marker).'%';
@@ -338,7 +341,7 @@ class UAMS_C2S_Scanner
         // every post this plugin has successfully converted is a candidate -- the
         // prefilter's cost grows with the plugin's success, and a get_post() per
         // candidate made that 1 + N queries, twice per Tools render.
-        $sql = "SELECT ID, post_content FROM {$wpdb->posts} WHERE ( {$clauses} ) AND post_status IN ( {$status_slots} ) ORDER BY post_type ASC, ID ASC";
+        $sql = "SELECT ID, post_content FROM %i WHERE ( {$clauses} ) AND post_status IN ( {$status_slots} ) ORDER BY post_type ASC, ID ASC";
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         $rows = $wpdb->get_results($wpdb->prepare($sql, $params));
