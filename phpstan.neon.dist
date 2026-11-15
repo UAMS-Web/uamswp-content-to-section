@@ -168,9 +168,10 @@ parameters:
         # and, in the scanner, a built list of `%s` or `%d` placeholders, so none is
         # literal to PHPStan. Every value still goes through a placeholder. The only
         # literal form is the `%i` identifier placeholder, which needs WordPress 6.2;
-        # the plugin keeps its 5.8 floor. Remove this entry when the stub accepts a
-        # non-literal query, or when the plugin's floor reaches 6.2 and the table
-        # names move to `%i`. Ruled by Josh on UAMS-Web/uamswp-content-to-section#41.
+        # the plugin's floor is now 6.8, so the table names can move to `%i`
+        # (UAMS-Web/uamswp-content-to-section#87). Remove this entry when the stub
+        # accepts a non-literal query, or when that change lands. Ruled by Josh on
+        # UAMS-Web/uamswp-content-to-section#41.
         -
             identifier: argument.type
             message: '#^Parameter \#1 \$query of method wpdb::prepare\(\) expects literal-string#'
