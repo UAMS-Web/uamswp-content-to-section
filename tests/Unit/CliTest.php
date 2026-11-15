@@ -628,3 +628,43 @@ it('shows no version for a conversion record whose version is not a scalar', fun
 
     expect($table[1][0]['converted'])->toBe('v?');
 });
+
+it('does not restrict a scan to a post type when the flag is not a string', function (): void {
+    $world = uams_c2s_cli_world();
+    $world->found = [7];
+
+    uams_c2s_cli_run('scan', [], ['post_type' => true]);
+
+    expect($world->finds)->toBe([['post_type' => '']]);
+});
+
+it('does not restrict --all to a post type when the flag is not a string', function (): void {
+    $world = uams_c2s_cli_world();
+    $world->found = [5];
+
+    uams_c2s_cli_run('convert', [], ['all' => true, 'post_type' => true]);
+
+    expect($world->finds)->toBe([['post_type' => '', 'status' => '']]);
+});
+
+it('reads a backup id the database returns as something other than a scalar as 0', function (): void {
+    $world = uams_c2s_cli_world();
+    $GLOBALS['wpdb'] = new class
+    {
+        public $postmeta = 'wp_postmeta';
+
+        public function prepare($sql, $param): string
+        {
+            return 'PREPARED';
+        }
+
+        public function get_col($sql): array
+        {
+            return [['x'], '12'];
+        }
+    };
+
+    uams_c2s_cli_run('revert', [], ['all' => true]);
+
+    expect(array_map(static fn (array $c): array => [$c[0], $c[1]], $world->calls))->toBe([['revert_post', 0], ['revert_post', 12]]);
+});

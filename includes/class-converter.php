@@ -283,8 +283,8 @@ class UAMS_C2S_Converter
      * shaped otherwise now reads as empty -- and convert_block() reports it
      * rather than quietly writing a Section with no heading.
      *
-     * @param  array<string,mixed>  $attrs  Block attributes.
-     * @return array<string,mixed>
+     * @param  array<mixed>  $attrs  Block attributes.
+     * @return array<mixed>
      */
     public static function block_data(array $attrs): array
     {

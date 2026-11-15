@@ -165,6 +165,20 @@ parameters:
         -
             identifier: argument.type
             path: includes/class-converter.php
+        # wpdb::prepare() in core's stubs wants a `literal-string` query. Seven
+        # queries interpolate the table name (`{$wpdb->posts}`, `{$wpdb->postmeta}`)
+        # and, in the scanner, a built list of `%s` or `%d` placeholders, so none is
+        # literal to PHPStan. Every value still goes through a placeholder. The only
+        # literal form is the `%i` identifier placeholder, which needs WordPress 6.2;
+        # the plugin keeps its 5.8 floor. Remove this entry when the stub accepts a
+        # non-literal query, or when the plugin's floor reaches 6.2 and the table
+        # names move to `%i`. Ruled by Josh on UAMS-Web/uamswp-content-to-section#41.
+        -
+            identifier: argument.type
+            message: '#^Parameter \#1 \$query of method wpdb::prepare\(\) expects literal-string#'
+            paths:
+                - includes/class-scanner.php
+                - includes/class-cli.php
         # The entry most plugins need once the level reaches 4, from
         # uamswp-migration-api: the PHP version guard in the plugin header.
         # PHPStan analyzes at the `min` above, so

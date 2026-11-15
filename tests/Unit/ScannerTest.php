@@ -392,3 +392,43 @@ it('skips a parsed block that is not an array, and inner blocks that are not a l
 
     expect(UAMS_C2S_Scanner::summarize($post))->toBe(['blocks' => 1, 'geo' => 0]);
 });
+
+it('reads an id from a database value, and a value that is not a scalar as 0', function (): void {
+    expect(UAMS_C2S_Scanner::id_from('7'))->toBe(7)
+        ->and(UAMS_C2S_Scanner::id_from(-3))->toBe(3)
+        ->and(UAMS_C2S_Scanner::id_from(['7']))->toBe(0)
+        ->and(UAMS_C2S_Scanner::id_from(null))->toBe(0);
+});
+
+it('skips a conversion record the database returns as something other than a string', function (): void {
+    $GLOBALS['wpdb'] = uams_c2s_fake_wpdb([
+        'get_col' => [[['x'], serialize(['version' => '1.0.2'])]],
+        'get_var' => ['0', '0', '0'],
+        'get_results' => [[], []],
+    ]);
+
+    $status = UAMS_C2S_Scanner::status();
+
+    expect($status['versions'])->toBe(['1.0.2' => 1])
+        ->and($status['conversions'])->toBe(2);
+});
+
+it('skips an at-risk row whose meta value is not a string or whose post id is not a number', function (): void {
+    $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_results' => [[
+        (object) ['post_id' => '4', 'meta_value' => ['x']],
+        (object) ['post_id' => 'abc', 'meta_value' => serialize(['version' => '1.0.0'])],
+        (object) ['post_id' => '8', 'meta_value' => serialize(['version' => '1.0.0'])],
+    ]]]);
+
+    expect(UAMS_C2S_Scanner::find_at_risk())->toBe([8]);
+});
+
+it('skips a damaged-post row whose content is not a string or whose id is not a number', function (): void {
+    $GLOBALS['wpdb'] = uams_c2s_fake_wpdb(['get_results' => [[
+        (object) ['ID' => '11', 'post_content' => ['text u003c broken']],
+        (object) ['ID' => 'abc', 'post_content' => 'text u003c broken'],
+        (object) ['ID' => '13', 'post_content' => 'text u003c broken'],
+    ]]]);
+
+    expect(UAMS_C2S_Scanner::find_damaged())->toBe([13]);
+});

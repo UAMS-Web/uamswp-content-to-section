@@ -147,7 +147,17 @@ class UAMS_C2S_Scanner
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
 
-        return array_map(static fn ($id): int => absint($id), (array) $ids);
+        return array_map(self::id_from(...), (array) $ids);
+    }
+
+    /**
+     * An ID from a database value: a scalar reads as absint() reads it, anything else as 0.
+     *
+     * @param  mixed  $value  Value from a query result.
+     */
+    public static function id_from($value): int
+    {
+        return is_scalar($value) ? absint($value) : 0;
     }
 
     /**
@@ -209,6 +219,10 @@ class UAMS_C2S_Scanner
         $versions = [];
 
         foreach ((array) $records as $raw) {
+            if (! is_string($raw)) {
+                continue;
+            }
+
             $record = maybe_unserialize($raw);
 
             if (! is_array($record)) {
@@ -266,6 +280,10 @@ class UAMS_C2S_Scanner
         $ids = [];
 
         foreach ((array) $rows as $row) {
+            if (! is_string($row->meta_value ?? null) || ! is_numeric($row->post_id ?? null)) {
+                continue;
+            }
+
             $record = maybe_unserialize($row->meta_value);
 
             if (! is_array($record) || empty($record['version']) || ! is_string($record['version'])) {
@@ -328,6 +346,10 @@ class UAMS_C2S_Scanner
         $damaged = [];
 
         foreach ((array) $rows as $row) {
+            if (! is_string($row->post_content ?? null) || ! is_numeric($row->ID ?? null)) {
+                continue;
+            }
+
             if (UAMS_C2S_Converter::looks_damaged($row->post_content)) {
                 $damaged[] = (int) $row->ID;
             }

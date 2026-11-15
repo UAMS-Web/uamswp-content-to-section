@@ -88,7 +88,7 @@ class UAMS_C2S_Admin
             'uams-c2s-admin',
             UAMS_C2S_URL.'assets/css/admin.css',
             [],
-            UAMS_C2S_VERSION
+            $this->asset_version(UAMS_C2S_VERSION)
         );
     }
 
@@ -105,7 +105,7 @@ class UAMS_C2S_Admin
     {
         $stored = get_option(self::OPTION, []);
 
-        return array_merge(uams_c2s_default_args(), is_array($stored) ? $stored : []);
+        return array_merge(uams_c2s_default_args(), is_array($stored) ? array_filter($stored, is_string(...), ARRAY_FILTER_USE_KEY) : []);
     }
 
     /* ---------------------------------------------------------------------
@@ -544,7 +544,7 @@ class UAMS_C2S_Admin
                         /* translators: 1: number of posts, 2: post status name. */
                         __('Convert %1$d %2$s', 'uams-c2s'),
                         $count,
-                        strtolower($object ? $object->label : $status)
+                        strtolower($object && is_string($object->label) ? $object->label : $status)
                     ),
                 ];
             }
@@ -1100,17 +1100,23 @@ class UAMS_C2S_Admin
     }
 
     /**
+     * The version query string for the admin stylesheet.
+     *
+     * @param  mixed  $version  The plugin version constant.
+     */
+    protected function asset_version($version): string|false
+    {
+        return is_string($version) ? $version : false;
+    }
+
+    /**
      * Self-submitting interstitial that runs the next batch.
      *
      * @param  int  $remaining  Posts still to process.
-     * @param  array<string,mixed>  $args  {
-     *                                     Optional.
-     *
-     * @type string $action   admin-post action to chain to.
-     * @type string $title    Page title.
-     * @type string $progress Pluralised sprintf pattern taking the count.
-     * @type array<string,string> $fields Hidden fields to carry into the next request.
-     *                            }
+     * @param  array{action?:string,title?:string,progress?:string,fields?:array<string,string>}  $args  Optional: `action` is the admin-post action to
+     *                                                                                                   chain to, `title` the page title, `progress` the
+     *                                                                                                   pluralised sprintf pattern taking the count and
+     *                                                                                                   `fields` the hidden fields to carry into the next request.
      */
     protected function render_batch_progress($remaining, array $args = []): never
     {

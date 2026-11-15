@@ -1717,3 +1717,28 @@ it('shows a placeholder for a conversion record whose version or time is not a s
 
     expect(uams_c2s_admin_render($world))->toContain('v?, ?');
 });
+
+it('ignores stored options whose keys are not strings', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->option = [0 => 'junk', 'include_geo' => true];
+
+    expect((new UAMS_C2S_Admin)->options())->toBe(array_merge(uams_c2s_default_args(), ['include_geo' => true]));
+});
+
+it('uses the plugin version as the stylesheet version when it is a string, and none otherwise', function (): void {
+    $version = new ReflectionMethod(UAMS_C2S_Admin::class, 'asset_version');
+    $admin = new UAMS_C2S_Admin;
+
+    expect($version->invoke($admin, '1.2.3'))->toBe('1.2.3')
+        ->and($version->invoke($admin, ['1.2.3']))->toBeFalse();
+});
+
+it('names a status by its slug when its label is not a string', function (): void {
+    $world = uams_c2s_admin_world();
+    $world->status = uams_c2s_admin_status();
+    $world->found = [1, 2, 3];
+    $world->statusCounts = ['publish' => 2, 'draft' => 1];
+    $world->statusObjects = ['publish' => (object) ['label' => ['Published']]];
+
+    expect(uams_c2s_admin_render($world))->toContain('[submit:Convert 2 publish|secondary|submit|false]');
+});
