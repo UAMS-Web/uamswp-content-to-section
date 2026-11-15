@@ -61,6 +61,8 @@ class UAMS_C2S_CLI
     public function scan($args, array $assoc_args): void
     {
         $post_type = get_flag_value($assoc_args, 'post_type', '');
+        $post_type = is_string($post_type) ? $post_type : '';
+
         $format = get_flag_value($assoc_args, 'format', 'table');
 
         $ids = UAMS_C2S_Scanner::find(['post_type' => $post_type]);
@@ -182,9 +184,11 @@ class UAMS_C2S_CLI
                 );
             }
 
+            $post_type = get_flag_value($assoc_args, 'post_type', '');
+
             $ids = UAMS_C2S_Scanner::find(
                 [
-                    'post_type' => get_flag_value($assoc_args, 'post_type', ''),
+                    'post_type' => is_string($post_type) ? $post_type : '',
                     'status' => $status,
                 ]
             );
@@ -290,6 +294,7 @@ class UAMS_C2S_CLI
      */
     public function revert($args, $assoc_args): void
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $ids = array_map(absint(...), $args);
@@ -300,7 +305,7 @@ class UAMS_C2S_CLI
             }
 
             $ids = array_map(
-                absint(...),
+                UAMS_C2S_Scanner::id_from(...),
                 $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",

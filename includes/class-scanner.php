@@ -81,23 +81,19 @@ class UAMS_C2S_Scanner
     /**
      * IDs of posts containing at least one Content block.
      *
-     * @param  array<string,mixed>  $args  {
-     *                                     Optional. Query arguments.
-     *
-     * @type string $post_type Restrict to one post type.
-     * @type int $limit     Maximum rows. 0 for all.
-     * @type int $offset    Offset.
-     * @type int[] $exclude   Post IDs to skip.
-     *             }
-     *
+     * @param  array{post_type?:string,status?:string|string[],limit?:int,offset?:int,exclude?:int[]}  $args  Optional query arguments:
+     *                                                                                                        `post_type` restricts to one post type, `status`
+     *                                                                                                        narrows the statuses, `limit` is the maximum rows
+     *                                                                                                        (0 for all), `offset` the offset and `exclude` the
+     *                                                                                                        post IDs to skip.
      * @return int[]
      */
     public static function find(array $args = []): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
-        $args = wp_parse_args(
-            $args,
+        $args = array_merge(
             [
                 'post_type' => '',
                 'status' => '',
@@ -105,7 +101,8 @@ class UAMS_C2S_Scanner
                 // @pest-mutate-ignore: DecrementInteger
                 'limit' => 0,
                 'offset' => 0,
-            ]
+            ],
+            $args
         );
 
         $statuses = self::narrow_statuses($args['status']);
@@ -130,7 +127,7 @@ class UAMS_C2S_Scanner
         }
 
         if (! empty($args['exclude'])) {
-            $exclude = array_map(absint(...), (array) $args['exclude']);
+            $exclude = array_map(static fn ($id): int => absint($id), (array) $args['exclude']);
             // implode() ignores the keys, so the start index of array_fill() cannot show in
             // the result: the mutants that move it are equivalent.
             // @pest-mutate-ignore: IncrementInteger, DecrementInteger
@@ -150,7 +147,17 @@ class UAMS_C2S_Scanner
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built above.
         $ids = $wpdb->get_col($wpdb->prepare($sql, $params));
 
-        return array_map(absint(...), (array) $ids);
+        return array_map(self::id_from(...), (array) $ids);
+    }
+
+    /**
+     * An ID from a database value: a scalar reads as absint() reads it, anything else as 0.
+     *
+     * @param  mixed  $value  Value from a query result.
+     */
+    public static function id_from($value): int
+    {
+        return is_scalar($value) ? absint($value) : 0;
     }
 
     /**
@@ -160,6 +167,7 @@ class UAMS_C2S_Scanner
      */
     public static function count_containing($needle): int
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $statuses = self::statuses();
@@ -189,6 +197,7 @@ class UAMS_C2S_Scanner
      */
     public static function status(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $records = $wpdb->get_col(
@@ -210,6 +219,10 @@ class UAMS_C2S_Scanner
         $versions = [];
 
         foreach ((array) $records as $raw) {
+            if (! is_string($raw)) {
+                continue;
+            }
+
             $record = maybe_unserialize($raw);
 
             if (! is_array($record)) {
@@ -254,6 +267,7 @@ class UAMS_C2S_Scanner
      */
     public static function find_at_risk(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $rows = $wpdb->get_results(
@@ -266,6 +280,10 @@ class UAMS_C2S_Scanner
         $ids = [];
 
         foreach ((array) $rows as $row) {
+            if (! is_string($row->meta_value ?? null) || ! is_numeric($row->post_id ?? null)) {
+                continue;
+            }
+
             $record = maybe_unserialize($row->meta_value);
 
             if (! is_array($record) || empty($record['version']) || ! is_string($record['version'])) {
@@ -292,6 +310,7 @@ class UAMS_C2S_Scanner
      */
     public static function find_damaged(): array
     {
+        /** @var wpdb $wpdb */
         global $wpdb;
 
         $statuses = self::statuses();
@@ -327,6 +346,10 @@ class UAMS_C2S_Scanner
         $damaged = [];
 
         foreach ((array) $rows as $row) {
+            if (! is_string($row->post_content ?? null) || ! is_numeric($row->ID ?? null)) {
+                continue;
+            }
+
             if (UAMS_C2S_Converter::looks_damaged($row->post_content)) {
                 $damaged[] = (int) $row->ID;
             }
