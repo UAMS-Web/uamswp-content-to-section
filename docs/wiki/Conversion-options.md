@@ -2,7 +2,9 @@
 
 Written against v1.1.0.
 
-Three options change how a conversion is done. On the Tools screen they are under *Conversion options* and are saved with *Save options*; on the command line each is a flag on `convert` and `repair`. The defaults come from `uams_c2s_default_args()`, which the [`uams_c2s_default_args`](Filters.md#uams_c2s_default_args) filter can change.
+Three options change how a conversion is done. On the Tools screen they are under *Conversion options* and are saved with *Save options*; on the command line each is a flag on `convert` and `repair`.
+
+Where the defaults come from depends on the path. On the Tools screen, until options are saved, they come from `uams_c2s_default_args()`, which the [`uams_c2s_default_args`](Filters.md#uams_c2s_default_args) filter can change. On WP-CLI these three always come from the flags: a flag not passed means off, off and `v3`, whatever the filter returns.
 
 | Option | Tools screen | WP-CLI flag | Argument | Default |
 |---|---|---|---|---|
@@ -10,7 +12,7 @@ Three options change how a conversion is done. On the Tools screen they are unde
 | Headings | *Demote H1/H2 found in the body to H3* | `--demote-headings` | `demote_headings` | off |
 | List markup | *List markup* select | `--list-format=v3\|v2` | `list_format` | `v3` |
 
-A fourth argument, `max_heading` (default `2`), is the heading level the Section Block renders itself. It has no control on the screen or the command line; change it through the filter.
+A fourth argument, `max_heading` (default `2`), is the heading level the Section Block renders itself. It has no control on the screen or the command line; the filter changes it on every path.
 
 ## Geo-targeted blocks
 
@@ -18,7 +20,7 @@ The Content Block can restrict itself to GeoTargetingWP regions; the Section Blo
 
 ## Headings
 
-The Section Block renders its own `<h2>`, so an `<h1>` or `<h2>` in the body breaks the page outline. The preview flags them either way. With the option on, they are rewritten to `<h3>`; other headings are left as they are.
+The Section Block renders its own `<h2>`, so an `<h1>` or `<h2>` in the body breaks the page outline. With the option off, the preview flags each one. With it on, they are rewritten to `<h3>` without a note; other headings are left as they are.
 
 ## List markup
 

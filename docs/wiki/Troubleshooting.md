@@ -80,6 +80,8 @@ A post converted from the Tools screen is no longer listed, so there is no *Reve
 
 An action stops with *You do not have permission to run this conversion.* or *You cannot edit that post.*
 
-**Cause:** every action needs `manage_options`, and `edit_post` on the target post, plus a valid nonce. A nonce expires, so a Tools screen left open for a long time can fail this way too.
+**Cause:** every action needs `manage_options`, and a single-post action also needs `edit_post` on that post. A batch does not stop on a post the user cannot edit; it skips it, and the post stays listed.
 
-**Fix:** reload the Tools screen and try again, signed in as a user with both capabilities.
+**Fix:** sign in as a user with both capabilities and try again.
+
+**Note:** a Tools screen left open for a long time can instead stop with WordPress's own *The link you followed has expired.*, because the action's nonce expired. Reload the screen and try again.

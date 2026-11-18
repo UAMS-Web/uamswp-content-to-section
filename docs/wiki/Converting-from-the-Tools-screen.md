@@ -26,7 +26,7 @@ The list of posts to convert shrinks as they convert, so these counts are what t
 ## Steps
 
 1. **Set the options** and choose *Save options*.
-2. **Convert the drafts first.** Choose the button for that status, for example *Convert 45 drafts*. Each status button walks only its own posts, in batches of 10, and stops there, so a draft sweep never runs on into the published pages. A *Converting…* notice counts the posts left; *Batch conversion finished.* ends it.
+2. **Convert the drafts first.** Choose the button for that status, for example *Convert 45 draft*. Each status button walks only its own posts, in batches of 10, and stops there, so a draft sweep never runs on into the published pages. A *Converting…* notice counts the posts left; *Batch conversion finished.* ends it. The per-status buttons appear only when the listed posts are in more than one status; otherwise *Convert all* covers the one status there is.
 3. **Walk the published posts by hand.** For each one, choose *Preview*, read *Review before converting*, then *Convert*.
 4. **Use Convert all** only when every remaining post is one you are happy to convert unseen. It converts every listed post, all statuses, in batches of 10.
 5. **Revert any post** whose result is wrong. A row still in the list after its conversion has a *Revert* button; a post that converted completely has left the list, so revert it with `wp uams-c2s revert <id>` or from its *Revisions* screen (see [Safety and undo](Safety-and-undo.md)).

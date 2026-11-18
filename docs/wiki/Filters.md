@@ -13,7 +13,7 @@ Four filters change what the plugin scans and how it converts. Add them from a t
 
 ## uams_c2s_default_args
 
-Receives the default arguments: `include_geo` (`false`), `demote_headings` (`false`), `max_heading` (`2`) and `list_format` (`v3`). Options saved on the Tools screen and flags passed on the command line still override what this returns. See [Conversion options](Conversion-options.md).
+Receives the default arguments: `include_geo` (`false`), `demote_headings` (`false`), `max_heading` (`2`) and `list_format` (`v3`). On the Tools screen it sets the defaults until options are saved there. On WP-CLI the flags always set `include_geo`, `demote_headings` and `list_format`, so only `max_heading` takes effect from this filter. See [Conversion options](Conversion-options.md).
 
 ```php
 add_filter('uams_c2s_default_args', function (array $defaults): array {

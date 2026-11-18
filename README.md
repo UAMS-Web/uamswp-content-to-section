@@ -32,8 +32,7 @@ saved converted posts with damaged block markup. See
 There are three ways to run a conversion:
 
 - **Tools → Content → Section:** site status counts, a list of every post still
-  holding a Content Block, Preview (a dry run), Convert, and batch buttons per
-  post status. See
+  holding a Content Block, Preview (a dry run), Convert, and batch buttons. See
   [Your first conversion](https://github.com/UAMS-Web/uamswp-content-to-section/wiki/Your-first-conversion).
 - **In the editor:** select a UAMS Content Block and choose
   **Transform to → UAMS Section** in the block toolbar.

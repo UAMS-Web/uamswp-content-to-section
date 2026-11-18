@@ -6,10 +6,10 @@ Written against v1.1.0.
 
 ## What 1.0.0 damaged
 
-`wp_update_post()` runs `wp_unslash()` over whatever it is handed, and `serialize_blocks()` writes backslash escapes into every block's attribute JSON: core escapes `<`, `>`, `&`, `"` and `--` as `<`, `>`, `&`, `"` and `-`. Version 1.0.0 passed the serialized content through unslashed, so one backslash was removed from each escape and the attributes were saved as literal text:
+`wp_update_post()` runs `wp_unslash()` over whatever it is handed, and `serialize_blocks()` writes backslash escapes into every block's attribute JSON: core escapes `<`, `>`, `&`, `"` and `--` as `\u003c`, `\u003e`, `\u0026`, `\u0022` and `\u002d`. Version 1.0.0 passed the serialized content through unslashed, so one backslash was removed from each escape and the attributes were saved as literal text:
 
 ```
-before   "cta_bar_text":"<p style="text-align: center">Contact<\/p>"
+before   "cta_bar_text":"\u003cp style=\u0022text-align: center\u0022\u003eContact\u003c\/p\u003e"
 after    "cta_bar_text":"u003cp style=u0022text-align: centeru0022u003eContactu003c/pu003e"
 ```
 
@@ -23,7 +23,7 @@ The detector recognizes only escapes whose stripped form is unmistakable: `u003c
 
 | Escape | Becomes | Detectable | Matters |
 |---|---|---|---|
-| `<` `"` `&` `-` | `u003c` `u0022` … | yes | yes: renders as literal text |
+| `\u003c` `\u0022` `\u0026` `\u002d` | `u003c` `u0022` … | yes | yes: renders as literal text |
 | `\n` `\r` `\t` | `n` `r` `t` | **no**: reads as ordinary text | yes: line breaks are gone |
 | `\\` | `\` | no | yes |
 | `\/` | `/` | no | no: the same JSON value |
